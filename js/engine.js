@@ -27,9 +27,8 @@ const DIRS = {
 };
 
 function moveToCell(dom, x, y) {
-  const s = cellSize();
-  dom.style.left = `${x * s}px`;
-  dom.style.top = `${y * s}px`;
+  dom.style.left = `calc(var(--cell) * ${x})`;
+  dom.style.top = `calc(var(--cell) * ${y})`;
 }
 
 export class Wall {
@@ -249,17 +248,13 @@ export class Stage {
     });
     this.addBorders();
     for (const jelly of this.jellies) this.refreshJellyBorders(jelly);
-    const s = cellSize();
-    this.dom.style.width = `${rows[0].length * s}px`;
-    this.dom.style.height = `${rows.length * s}px`;
   }
 
-  /** 画面サイズ変更後にマスサイズへ合わせて盤面を組み直す */
+  /** --cell 変更後にゼリー位置・見た目を盤面に同期 */
   remountLayout() {
     if (!this.cells?.[0]?.length) return;
-    const s = cellSize();
-    this.dom.style.width = `${this.cells[0].length * s}px`;
-    this.dom.style.height = `${this.cells.length * s}px`;
+    this.dom.style.width = "";
+    this.dom.style.height = "";
     for (const jelly of this.jellies) {
       if (!jelly.cells?.length) continue;
       jelly.updatePosition(jelly.x, jelly.y);
@@ -272,9 +267,8 @@ export class Stage {
   refreshJellyBorders(jelly) {
     const set = new Set(jelly.cells.map((c) => `${c.x},${c.y}`));
     const has = (x, y) => set.has(`${x},${y}`);
-    const R = "11px";
+    const R = "calc(var(--cell) * 0.26)";
     const line = "rgba(0, 0, 0, 0.12)";
-    const seam = 2;
     const merged = jelly.cells.length > 1;
 
     jelly.dom.classList.toggle("is-merged", merged);
@@ -291,13 +285,8 @@ export class Stage {
       s.marginLeft = "0";
       s.marginTop = "0";
       s.borderRadius = `${top && left ? R : "0"} ${top && right ? R : "0"} ${bottom && right ? R : "0"} ${bottom && left ? R : "0"}`;
-      const cs = cellSize();
-      let w = cs;
-      let h = cs;
-      if (merged && has(x + 1, y)) w += seam;
-      if (merged && has(x, y + 1)) h += seam;
-      s.width = `${w}px`;
-      s.height = `${h}px`;
+      s.width = merged && has(x + 1, y) ? "calc(var(--cell) + 2px)" : "";
+      s.height = merged && has(x, y + 1) ? "calc(var(--cell) + 2px)" : "";
       s.zIndex = "1";
       const edge = [];
       if (top) edge.push(`inset 0 2px 0 0 ${line}`);

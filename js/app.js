@@ -128,6 +128,7 @@ function mountLevel(id) {
   const wipOverlay = $("#wip-overlay");
   if (wipOverlay) wipOverlay.hidden = !wip;
   applyGrid(settings);
+  fitStageToViewport();
 
   stage = new Stage(map, lv.rows, {
     showGrid: settings.grid,

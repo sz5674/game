@@ -9,6 +9,7 @@
   --board-cols: 19;
   --board-rows: 11;
   --chrome-v: 112px;
+  --cell-boost: 1;
 }
 
 [data-theme="dark"] {
@@ -161,6 +162,8 @@ body {
   margin: 0 auto;
   user-select: none;
   touch-action: none;
+  width: calc(var(--cell) * var(--board-cols));
+  height: calc(var(--cell) * var(--board-rows));
 }
 
 #map table {
@@ -560,13 +563,17 @@ dialog.clear-dialog::backdrop {
   margin: 12px 0;
 }
 
-/* スマホ：マス目を画面幅・高さに合わせて縮小（19×11 盤面がはみ出さない） */
+/* スマホ：マス目を画面に合わせて縮小（--cell-boost で少し大きく表示） */
 @media (max-width: 900px) {
   :root {
+    --cell-boost: 1.2;
     --cell: min(
       42px,
-      calc((100vw - 12px) / var(--board-cols)),
-      calc((100dvh - var(--chrome-v) - env(safe-area-inset-top) - env(safe-area-inset-bottom)) / var(--board-rows))
+      calc((100vw - 12px) / var(--board-cols) * var(--cell-boost)),
+      calc(
+        (100dvh - var(--chrome-v) - env(safe-area-inset-top) - env(safe-area-inset-bottom)) /
+          var(--board-rows) * var(--cell-boost)
+      )
     );
   }
 
@@ -606,7 +613,11 @@ dialog.clear-dialog::backdrop {
 @supports not (height: 100dvh) {
   @media (max-width: 900px) {
     :root {
-      --cell: min(42px, calc((100vw - 12px) / var(--board-cols)), calc((100vh - var(--chrome-v)) / var(--board-rows)));
+      --cell: min(
+        42px,
+        calc((100vw - 12px) / var(--board-cols) * var(--cell-boost)),
+        calc((100vh - var(--chrome-v)) / var(--board-rows) * var(--cell-boost))
+      );
     }
   }
 }
