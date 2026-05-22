@@ -6,6 +6,9 @@
   --accent: #5b8def;
   --wall: #888;
   --cell: 42px;
+  --board-cols: 19;
+  --board-rows: 11;
+  --chrome-v: 112px;
 }
 
 [data-theme="dark"] {
@@ -32,11 +35,22 @@ body {
   touch-action: manipulation;
 }
 
+@supports (height: 100dvh) {
+  html,
+  body,
+  #app {
+    height: 100dvh;
+  }
+}
+
 #app {
   display: flex;
   flex-direction: column;
   height: 100%;
+  width: 100%;
   max-width: 100vw;
+  overflow: hidden;
+  min-height: 0;
 }
 
 .toolbar {
@@ -546,10 +560,26 @@ dialog.clear-dialog::backdrop {
   margin: 12px 0;
 }
 
-/* スマホ：横長盤面を画面内に収める（JS で stage-scaler を縮小） */
+/* スマホ：マス目を画面幅・高さに合わせて縮小（19×11 盤面がはみ出さない） */
 @media (max-width: 900px) {
+  :root {
+    --cell: min(
+      42px,
+      calc((100vw - 12px) / var(--board-cols)),
+      calc((100dvh - var(--chrome-v) - env(safe-area-inset-top) - env(safe-area-inset-bottom)) / var(--board-rows))
+    );
+  }
+
   #stage-wrap {
     padding: 4px;
+    width: 100%;
+  }
+
+  #stage-fit,
+  #stage-scaler {
+    width: auto !important;
+    height: auto !important;
+    transform: none !important;
   }
 
   .toolbar {
@@ -570,6 +600,14 @@ dialog.clear-dialog::backdrop {
 
   .level-label {
     font-size: 0.85rem;
+  }
+}
+
+@supports not (height: 100dvh) {
+  @media (max-width: 900px) {
+    :root {
+      --cell: min(42px, calc((100vw - 12px) / var(--board-cols)), calc((100vh - var(--chrome-v)) / var(--board-rows)));
+    }
   }
 }
 

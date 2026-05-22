@@ -1,6 +1,14 @@
 /** @typedef {[number, number, JellyCell]} CellCoord */
 
+/** @deprecated 互換用。実サイズは CSS の --cell を参照 */
 export const CELL_SIZE = 42;
+
+/** 盤面・ゼリーのピクセルサイズ（スマホでは CSS で縮小） */
+export function cellSize() {
+  if (typeof document === "undefined") return CELL_SIZE;
+  const n = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--cell"));
+  return Number.isFinite(n) && n > 0 ? n : CELL_SIZE;
+}
 
 export const COLORS = {
   black: "hsl(0, 0%, 35%)",
@@ -19,8 +27,9 @@ const DIRS = {
 };
 
 function moveToCell(dom, x, y) {
-  dom.style.left = `${x * CELL_SIZE}px`;
-  dom.style.top = `${y * CELL_SIZE}px`;
+  const s = cellSize();
+  dom.style.left = `${x * s}px`;
+  dom.style.top = `${y * s}px`;
 }
 
 export class Wall {
@@ -240,8 +249,23 @@ export class Stage {
     });
     this.addBorders();
     for (const jelly of this.jellies) this.refreshJellyBorders(jelly);
-    this.dom.style.width = `${rows[0].length * CELL_SIZE}px`;
-    this.dom.style.height = `${rows.length * CELL_SIZE}px`;
+    const s = cellSize();
+    this.dom.style.width = `${rows[0].length * s}px`;
+    this.dom.style.height = `${rows.length * s}px`;
+  }
+
+  /** 画面サイズ変更後にマスサイズへ合わせて盤面を組み直す */
+  remountLayout() {
+    if (!this.cells?.[0]?.length) return;
+    const s = cellSize();
+    this.dom.style.width = `${this.cells[0].length * s}px`;
+    this.dom.style.height = `${this.cells.length * s}px`;
+    for (const jelly of this.jellies) {
+      if (!jelly.cells?.length) continue;
+      jelly.updatePosition(jelly.x, jelly.y);
+      for (const cell of jelly.cells) moveToCell(cell.dom, cell.x, cell.y);
+      this.refreshJellyBorders(jelly);
+    }
   }
 
   /** 合体後は内側の境目を消し、外周だけ丸めて一体の形にする */
@@ -267,8 +291,9 @@ export class Stage {
       s.marginLeft = "0";
       s.marginTop = "0";
       s.borderRadius = `${top && left ? R : "0"} ${top && right ? R : "0"} ${bottom && right ? R : "0"} ${bottom && left ? R : "0"}`;
-      let w = CELL_SIZE;
-      let h = CELL_SIZE;
+      const cs = cellSize();
+      let w = cs;
+      let h = cs;
       if (merged && has(x + 1, y)) w += seam;
       if (merged && has(x, y + 1)) h += seam;
       s.width = `${w}px`;
