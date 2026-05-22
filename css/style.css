@@ -585,30 +585,34 @@ dialog.clear-dialog::backdrop {
   margin: 12px 0;
 }
 
-.rotate-hint {
-  display: none;
-  flex: 1;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 24px;
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--muted);
-}
-
-/* スマホ横持ち専用（UI小・盤面大） */
+/* スマホ縦持ちのまま UI ごと 90° 回転（横長ゲームを大きく表示） */
 @media (max-width: 900px) {
+  html.game-mobile,
+  html.game-mobile body {
+    overflow: hidden;
+    height: 100%;
+    width: 100%;
+  }
+
+  html.game-mobile #app {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    width: 100dvh;
+    height: 100vw;
+    max-width: 100dvh;
+    max-height: 100vw;
+    transform: translate(-50%, -50%) rotate(90deg);
+    transform-origin: center center;
+  }
+
   :root {
-    --chrome-v: 52px;
-    --cell-boost: 1.15;
+    --chrome-v: 48px;
+    --cell-boost: 1.12;
     --cell: min(
       42px,
-      calc((100vw - 16px) / var(--board-cols) * var(--cell-boost)),
-      calc(
-        (100dvh - var(--chrome-v) - env(safe-area-inset-top) - env(safe-area-inset-bottom)) /
-          var(--board-rows) * var(--cell-boost)
-      )
+      calc((100dvh - var(--chrome-v) - 12px) / var(--board-cols) * var(--cell-boost)),
+      calc((100vw - 12px) / var(--board-rows) * var(--cell-boost))
     );
   }
 
@@ -672,25 +676,18 @@ dialog.clear-dialog::backdrop {
   }
 }
 
-/* 縦持ちのときだけ案内（ゲームは横持ち前提） */
-@media (max-width: 900px) and (orientation: portrait) {
-  .rotate-hint {
-    display: flex;
-  }
-
-  #stage-wrap,
-  .game-chrome {
-    display: none !important;
-  }
-}
-
 @supports not (height: 100dvh) {
   @media (max-width: 900px) {
+    html.game-mobile #app {
+      width: 100vh;
+      max-width: 100vh;
+    }
+
     :root {
       --cell: min(
         42px,
-        calc((100vw - 16px) / var(--board-cols) * var(--cell-boost)),
-        calc((100vh - var(--chrome-v)) / var(--board-rows) * var(--cell-boost))
+        calc((100vh - var(--chrome-v) - 12px) / var(--board-cols) * var(--cell-boost)),
+        calc((100vw - 12px) / var(--board-rows) * var(--cell-boost))
       );
     }
   }
