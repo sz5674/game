@@ -8,7 +8,7 @@
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="theme-color" content="#1a1a2e" />
   <title>Yugo Puzzle (Web)</title>
-  <link rel="stylesheet" href="css/style.css?v=5" />
+  <link rel="stylesheet" href="css/style.css?v=6" />
 </head>
 <body>
   <div id="app">
@@ -32,7 +32,10 @@
 
     <footer class="toolbar footer-bar">
       <button type="button" id="btn-prev" class="text-btn">◀</button>
-      <button type="button" id="btn-grid" class="text-btn" aria-pressed="false">升目</button>
+      <button type="button" id="btn-grid" class="text-btn btn-grid-toggle" aria-pressed="false">
+        <span class="btn-grid-label">マス目</span>
+        <span id="btn-grid-state" class="btn-grid-state">OFF</span>
+      </button>
       <button type="button" id="btn-settings" class="text-btn">設定</button>
       <button type="button" id="btn-next" class="text-btn">▶</button>
     </footer>
@@ -58,7 +61,7 @@
     </label>
     <label class="setting-row">
       <input type="checkbox" id="opt-grid" />
-      升目（1マスごとのグリッド線）
+      マス目（1マスごとのグリッド線）
     </label>
     <form method="dialog">
       <button type="submit" class="text-btn">閉じる</button>
@@ -78,6 +81,6 @@
     </div>
   </dialog>
 
-  <script type="module" src="js/app.js?v=5"></script>
+  <script type="module" src="js/app.js?v=6"></script>
 </body>
 </html>
