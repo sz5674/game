@@ -3,32 +3,28 @@
 /** @deprecated 互換用。実サイズは CSS の --cell を参照 */
 export const CELL_SIZE = 42;
 
-/** CSS の min() で決まったマス幅（インライン --cell を無視） */
-function cssCellSize() {
-  if (typeof document === "undefined") return CELL_SIZE;
-  const root = document.documentElement;
-  const saved = root.style.getPropertyValue("--cell");
-  root.style.removeProperty("--cell");
-  const n = parseFloat(getComputedStyle(root).getPropertyValue("--cell"));
-  if (saved) root.style.setProperty("--cell", saved);
+/** 描画済み td の実寸を --cell に反映（ゼリーとマス目のサイズを一致させる） */
+function syncCellCssVar() {
+  const map = document.getElementById("map");
+  const td = map?.querySelector("table td");
+  if (td) {
+    const { width, height } = td.getBoundingClientRect();
+    const s = Math.max(width, height);
+    if (s > 0) {
+      document.documentElement.style.setProperty("--cell", `${s}px`);
+      return s;
+    }
+  }
+  const n = parseFloat(
+    getComputedStyle(document.documentElement).getPropertyValue("--cell")
+  );
   return Number.isFinite(n) && n > 0 ? n : CELL_SIZE;
 }
 
 /** 盤面の実マス幅（描画済み td を測る。CSS 変数だけだとゼリーがずれる） */
 export function cellSize() {
-  const css = cssCellSize();
-  if (typeof document === "undefined") return css;
-  const map = document.getElementById("map");
-  if (map) {
-    const td = map.querySelector("table td");
-    if (td) {
-      const { width, height } = td.getBoundingClientRect();
-      const s = Math.max(width, height);
-      // 縮小フィードバックで極端に小さい測定値は無視
-      if (s >= css * 0.75) return s;
-    }
-  }
-  return css;
+  if (typeof document === "undefined") return CELL_SIZE;
+  return syncCellCssVar();
 }
 
 export const COLORS = {
@@ -278,13 +274,18 @@ export class Stage {
     });
     this.addBorders();
     void this.dom.offsetWidth;
+    syncCellCssVar();
     for (const jelly of this.jellies) this.refreshJellyBorders(jelly);
-    requestAnimationFrame(() => this.remountLayout());
+    requestAnimationFrame(() => {
+      this.remountLayout();
+      requestAnimationFrame(() => this.remountLayout());
+    });
   }
 
   /** 描画後のマス幅にゼリー位置・サイズを合わせる */
   remountLayout() {
     if (!this.cells?.[0]?.length) return;
+    void this.dom.offsetWidth;
     const s = cellSize();
     const cols = this.cells[0].length;
     const rows = this.cells.length;
