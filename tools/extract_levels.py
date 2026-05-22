@@ -29,6 +29,8 @@ IDX_CHAR = {
     5: "y",
     6: "k",  # black / anchor
     7: "x",  # edge / special tile — solid for gameplay
+    8: "x",  # stake / thin platform
+    9: "x",  # stake segment
 }
 
 
