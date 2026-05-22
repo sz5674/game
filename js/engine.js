@@ -188,7 +188,7 @@ export class Stage {
   /**
    * @param {HTMLElement} dom
    * @param {string[]} rows
-   * @param {{ showGrid?: boolean, faces?: boolean, onClear?: () => void }} opts
+   * @param {{ showGrid?: boolean, faces?: boolean, onClear?: () => void, onStateChange?: () => void }} opts
    */
   constructor(dom, rows, opts = {}) {
     this.dom = dom;
@@ -202,6 +202,10 @@ export class Stage {
     this.checkForMerges();
     if (opts.showGrid) this.dom.classList.add("show-grid");
     this.dom.addEventListener("contextmenu", (e) => e.preventDefault());
+  }
+
+  _notifyStateChange() {
+    this.opts.onStateChange?.();
   }
 
   setShowGrid(on) {
@@ -436,6 +440,7 @@ export class Stage {
           delete el.dataset.dir;
         });
         this.busy = false;
+        this._notifyStateChange();
       });
     }, anyAirborne ? 65 : 125);
   }
@@ -636,9 +641,11 @@ export class Stage {
     if (this.busy || !this.history.length) return;
     const prev = this.history.pop();
     this.restore(prev, { keepHistory: true });
+    this._notifyStateChange();
   }
 
   reset(rows) {
     this.restore(rows);
+    this._notifyStateChange();
   }
 }

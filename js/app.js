@@ -27,9 +27,10 @@ async function loadLevels() {
   }
 }
 
-/** @returns {{ lastLevel: number, cleared: Record<number, boolean> }} */
+/** @returns {{ lastLevel: number, cleared: Record<number, boolean>, boards: Record<number, string[]> }} */
 function normalizeProgress(raw) {
   const cleared = {};
+  const boards = {};
   let lastLevel = 1;
   if (raw && typeof raw === "object") {
     if (raw.cleared && typeof raw.cleared === "object") {
@@ -40,18 +41,25 @@ function normalizeProgress(raw) {
     } else {
       for (const [k, v] of Object.entries(raw)) {
         if (k === "last" || k === "lastLevel") lastLevel = Number(v) || 1;
-        else if (v === true) cleared[Number(k)] = true;
+        else if (k === "boards" && v && typeof v === "object") {
+          /* boards handled below */
+        } else if (v === true) cleared[Number(k)] = true;
+      }
+    }
+    if (raw.boards && typeof raw.boards === "object") {
+      for (const [k, rows] of Object.entries(raw.boards)) {
+        if (Array.isArray(rows)) boards[Number(k)] = rows.map((r) => String(r));
       }
     }
   }
-  return { lastLevel, cleared };
+  return { lastLevel, cleared, boards };
 }
 
 function loadProgress() {
   try {
     return normalizeProgress(JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"));
   } catch {
-    return { lastLevel: 1, cleared: {} };
+    return { lastLevel: 1, cleared: {}, boards: {} };
   }
 }
 
@@ -61,9 +69,30 @@ function saveProgress(progress) {
     JSON.stringify({
       lastLevel: progress.lastLevel,
       cleared: progress.cleared,
+      boards: progress.boards ?? {},
       updatedAt: new Date().toISOString(),
     })
   );
+}
+
+function loadBoardState(levelId) {
+  return loadProgress().boards[levelId] ?? null;
+}
+
+function clearBoardState(levelId) {
+  const progress = loadProgress();
+  if (progress.boards[levelId]) {
+    delete progress.boards[levelId];
+    saveProgress(progress);
+  }
+}
+
+/** いまの盤面をレベルごとに保存（別レベルへ移る前・手を指したあと） */
+function persistCurrentBoard(levelId = currentLevel) {
+  if (!stage || stage.busy || !levelId) return;
+  const progress = loadProgress();
+  progress.boards[levelId] = stage.snapshot().map((r) => String(r));
+  saveProgress(progress);
 }
 
 function isLevelCleared(id) {
@@ -74,6 +103,7 @@ function markLevelCleared(id) {
   const progress = loadProgress();
   progress.cleared[id] = true;
   progress.lastLevel = id;
+  delete progress.boards[id];
   saveProgress(progress);
 }
 
@@ -166,8 +196,16 @@ function mountLevel(id) {
   stopClearCelebration();
   const lv = getLevel(id);
   if (!lv) return;
+
+  if (stage && currentLevel !== lv.id) {
+    persistCurrentBoard(currentLevel);
+  }
+
   currentLevel = lv.id;
-  initialRows = lv.rows;
+  initialRows = lv.rows.map((r) => String(r));
+  const savedRows = loadBoardState(lv.id);
+  const playRows = savedRows ?? initialRows;
+
   const settings = loadSettings();
   const map = $("#map");
   const wip = isLevelWip(lv);
@@ -177,10 +215,11 @@ function mountLevel(id) {
   applyGrid(settings);
   fitStageToViewport();
 
-  stage = new Stage(map, lv.rows, {
+  stage = new Stage(map, playRows, {
     showGrid: settings.grid,
     faces: settings.faces,
     onClear: () => onLevelClear(lv.id),
+    onStateChange: () => persistCurrentBoard(lv.id),
   });
 
   const cleared = isLevelCleared(lv.id);
@@ -274,13 +313,16 @@ function bindUI() {
     setTimeout(scheduleStageFit, 500);
   });
   window.visualViewport?.addEventListener("resize", scheduleStageFit);
+  window.addEventListener("pagehide", () => persistCurrentBoard());
 
   $("#btn-undo").addEventListener("click", () => {
     stage?.undo();
     scheduleStageFit();
   });
   $("#btn-reset").addEventListener("click", () => {
+    clearBoardState(currentLevel);
     stage?.reset(initialRows);
+    persistCurrentBoard(currentLevel);
     scheduleStageFit();
   });
   $("#btn-prev").addEventListener("click", () => {
