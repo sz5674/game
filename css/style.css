@@ -97,6 +97,23 @@ body {
   font-weight: 600;
 }
 
+#stage-shell {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  min-height: 0;
+  position: relative;
+}
+
+#stage-rotator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform-origin: center center;
+}
+
 #stage-wrap {
   flex: 1;
   display: flex;
@@ -105,9 +122,13 @@ body {
   justify-content: center;
   overflow: hidden;
   padding: 8px;
-  padding-bottom: max(8px, env(safe-area-inset-bottom));
   position: relative;
   min-height: 0;
+}
+
+.game-mobile #stage-wrap {
+  flex: none;
+  padding: 0;
 }
 
 #stage-fit {
@@ -583,10 +604,80 @@ dialog.clear-dialog::backdrop {
   margin: 12px 0;
 }
 
-/* スマホ：マス目を画面に合わせて縮小（--cell-boost で少し大きく表示） */
+/* スマホ：横画面ゲーム（UIは小さく・盤面を大きく） */
 @media (max-width: 900px) {
   :root {
-    --cell-boost: 1.2;
+    --chrome-v: 52px;
+    --cell-boost: 1.15;
+  }
+
+  #stage-shell {
+    padding: 2px;
+  }
+
+  #stage-fit,
+  #stage-scaler {
+    width: auto !important;
+    height: auto !important;
+    transform: none !important;
+  }
+
+  .toolbar.game-chrome {
+    padding: 3px 8px;
+    gap: 4px;
+    min-height: 26px;
+    padding-top: max(3px, env(safe-area-inset-top));
+  }
+
+  .footer-bar.game-chrome {
+    padding: 3px 6px;
+    padding-bottom: max(3px, env(safe-area-inset-bottom));
+    gap: 4px;
+    min-height: 26px;
+    justify-content: space-between;
+  }
+
+  .game-chrome .icon-btn {
+    font-size: 0.95rem;
+    min-width: 32px;
+    min-height: 28px;
+    padding: 2px 6px;
+  }
+
+  .game-chrome .text-btn {
+    padding: 4px 8px;
+    font-size: 0.68rem;
+    min-height: 28px;
+  }
+
+  .game-chrome .level-label {
+    font-size: 0.72rem;
+    flex: 1;
+    text-align: center;
+  }
+
+  .game-chrome .btn-grid-toggle {
+    min-width: 52px;
+    gap: 1px;
+  }
+
+  .game-chrome .btn-grid-label {
+    font-size: 0.65rem;
+  }
+
+  .game-chrome .btn-grid-state {
+    font-size: 0.58rem;
+  }
+
+  .footer-bar.game-chrome .text-btn {
+    flex: 1;
+    max-width: 26%;
+  }
+}
+
+/* 横持ち：そのまま大きく表示 */
+@media (max-width: 900px) and (orientation: landscape) {
+  :root {
     --cell: min(
       42px,
       calc((100vw - 12px) / var(--board-cols) * var(--cell-boost)),
@@ -597,95 +688,46 @@ dialog.clear-dialog::backdrop {
     );
   }
 
-  #stage-wrap {
-    padding: 4px;
-    width: 100%;
+  html.layout-landscape #stage-rotator {
+    transform: none;
+  }
+}
+
+/* 縦持ち：盤面を90°回転して長辺を盤面幅に使う */
+@media (max-width: 900px) and (orientation: portrait) {
+  :root {
+    --cell: min(
+      42px,
+      calc(
+        (100dvh - var(--chrome-v) - env(safe-area-inset-top) - env(safe-area-inset-bottom)) /
+          var(--board-cols) * var(--cell-boost)
+      ),
+      calc((100vw - 12px) / var(--board-rows) * var(--cell-boost))
+    );
   }
 
-  #stage-fit,
-  #stage-scaler {
-    width: auto !important;
-    height: auto !important;
-    transform: none !important;
-  }
-
-  .toolbar {
-    padding: 12px 14px;
-    gap: 10px;
-    padding-top: max(10px, env(safe-area-inset-top));
-    min-height: 52px;
-  }
-
-  .footer-bar {
-    padding: 12px 10px;
-    padding-bottom: max(10px, env(safe-area-inset-bottom));
-    gap: 8px;
-    justify-content: space-between;
-  }
-
-  .footer-bar .text-btn {
-    flex: 1;
-    justify-content: center;
-  }
-
-  .icon-btn {
-    font-size: 1.4rem;
-    min-width: 48px;
-    min-height: 48px;
-    padding: 10px 12px;
-  }
-
-  .text-btn {
-    padding: 12px 14px;
-    font-size: 1rem;
-    min-height: 48px;
-  }
-
-  .level-label {
-    font-size: 1.05rem;
-    flex: 1;
-    text-align: center;
-  }
-
-  .toolbar-right .text-btn {
-    padding: 12px 16px;
-    font-size: 0.95rem;
-  }
-
-  .btn-grid-toggle {
-    display: inline-flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 2px;
-    line-height: 1.15;
-    min-width: 72px;
-  }
-
-  .btn-grid-label {
-    font-size: 0.95rem;
-    font-weight: 600;
-  }
-
-  .btn-grid-state {
-    font-size: 0.8rem;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    opacity: 0.9;
-  }
-
-  .text-btn.active .btn-grid-state {
-    color: var(--accent);
+  html.layout-portrait-rotate #stage-rotator {
+    transform: rotate(90deg);
   }
 }
 
 @supports not (height: 100dvh) {
-  @media (max-width: 900px) {
+  @media (max-width: 900px) and (orientation: landscape) {
     :root {
       --cell: min(
         42px,
         calc((100vw - 12px) / var(--board-cols) * var(--cell-boost)),
         calc((100vh - var(--chrome-v)) / var(--board-rows) * var(--cell-boost))
+      );
+    }
+  }
+
+  @media (max-width: 900px) and (orientation: portrait) {
+    :root {
+      --cell: min(
+        42px,
+        calc((100vh - var(--chrome-v)) / var(--board-cols) * var(--cell-boost)),
+        calc((100vw - 12px) / var(--board-rows) * var(--cell-boost))
       );
     }
   }

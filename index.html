@@ -8,11 +8,11 @@
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="theme-color" content="#1a1a2e" />
   <title>Yugo Puzzle (Web)</title>
-  <link rel="stylesheet" href="css/style.css?v=6" />
+  <link rel="stylesheet" href="css/style.css?v=8" />
 </head>
 <body>
-  <div id="app">
-    <header class="toolbar">
+  <div id="app" class="game-app">
+    <header class="toolbar game-chrome">
       <button type="button" id="btn-menu" class="icon-btn" aria-label="レベル選択">☰</button>
       <span id="level-label" class="level-label">Level 1</span>
       <div class="toolbar-right">
@@ -21,16 +21,20 @@
       </div>
     </header>
 
-    <main id="stage-wrap">
-      <div id="stage-fit">
-        <div id="stage-scaler">
-          <div id="map" aria-label="パズル盤面"></div>
-          <p id="wip-overlay" class="wip-overlay" hidden>修正中</p>
+    <main id="stage-shell">
+      <div id="stage-rotator">
+        <div id="stage-wrap">
+          <div id="stage-fit">
+            <div id="stage-scaler">
+              <div id="map" aria-label="パズル盤面"></div>
+              <p id="wip-overlay" class="wip-overlay" hidden>修正中</p>
+            </div>
+          </div>
         </div>
       </div>
     </main>
 
-    <footer class="toolbar footer-bar">
+    <footer class="toolbar footer-bar game-chrome">
       <button type="button" id="btn-prev" class="text-btn">◀</button>
       <button type="button" id="btn-grid" class="text-btn btn-grid-toggle" aria-pressed="false">
         <span class="btn-grid-label">マス目</span>
@@ -81,6 +85,6 @@
     </div>
   </dialog>
 
-  <script type="module" src="js/app.js?v=7"></script>
+  <script type="module" src="js/app.js?v=8"></script>
 </body>
 </html>

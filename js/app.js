@@ -159,8 +159,19 @@ function isLevelWip(lv) {
   return !!lv.wip || lv.id >= 15;
 }
 
-/** ツールバー高さを CSS 変数に反映し、スマホ用 --cell を再計算 */
+/** スマホ: 横画面レイアウト / 縦持ち時は盤面90°回転 */
+function updateLayoutOrientation() {
+  const mobile = window.matchMedia("(max-width: 900px)").matches;
+  const portrait = mobile && window.matchMedia("(orientation: portrait)").matches;
+  document.documentElement.classList.toggle("game-mobile", mobile);
+  document.documentElement.classList.toggle("layout-portrait-rotate", portrait);
+  document.documentElement.classList.toggle("layout-landscape", mobile && !portrait);
+  if (stage) stage.setRotated(portrait);
+}
+
+/** ツールバー高さを CSS 変数に反映し、盤面レイアウトを再計算 */
 function fitStageToViewport() {
+  updateLayoutOrientation();
   const header = $("#app > header.toolbar");
   const footer = $("#app > footer.toolbar");
   const fit = $("#stage-fit");
@@ -221,6 +232,7 @@ function mountLevel(id) {
     onClear: () => onLevelClear(lv.id),
     onStateChange: () => persistCurrentBoard(lv.id),
   });
+  updateLayoutOrientation();
 
   const cleared = isLevelCleared(lv.id);
   let label = `Level ${lv.id}`;
@@ -309,9 +321,13 @@ function updateMenuHighlight() {
 function bindUI() {
   window.addEventListener("resize", scheduleStageFit);
   window.addEventListener("orientationchange", () => {
+    updateLayoutOrientation();
     setTimeout(scheduleStageFit, 100);
     setTimeout(scheduleStageFit, 500);
   });
+  if (window.matchMedia) {
+    window.matchMedia("(orientation: portrait)").addEventListener("change", scheduleStageFit);
+  }
   window.visualViewport?.addEventListener("resize", scheduleStageFit);
   window.addEventListener("pagehide", () => persistCurrentBoard());
 
@@ -374,6 +390,7 @@ async function main() {
   await loadLevels();
   const settings = loadSettings();
   applyTheme(settings);
+  updateLayoutOrientation();
   bindUI();
 
   const progress = loadProgress();

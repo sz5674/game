@@ -161,13 +161,11 @@ export class Jelly {
       const p = pointer(e);
       const dx = p.x - startX;
       const dy = p.y - startY;
-      // 方向だけ判定。距離・ホールド時間は無視し、常に1マスだけ
-      const minSwipe = 8;
-      if (Math.abs(dx) < minSwipe && Math.abs(dy) < minSwipe) return;
-      if (Math.abs(dx) < Math.abs(dy)) return;
+      const dir = this.stage.slideDirFromSwipe(dx, dy, 8);
+      if (dir == null) return;
 
       acted = true;
-      this.stage.trySlide(this, dx > 0 ? 1 : -1);
+      this.stage.trySlide(this, dir);
       e.preventDefault();
     };
 
@@ -196,6 +194,7 @@ export class Stage {
     this.jellies = [];
     this.history = [];
     this.busy = false;
+    this.rotated = false;
     this.num_monochromatic_blocks = 0;
     this.num_colors = 0;
     this.loadMap(rows);
@@ -206,6 +205,21 @@ export class Stage {
 
   _notifyStateChange() {
     this.opts.onStateChange?.();
+  }
+
+  setRotated(on) {
+    this.rotated = on;
+  }
+
+  /** スワイプ方向 → 横1マス（盤面90°回転時は縦スワイプが左右移動） */
+  slideDirFromSwipe(dx, dy, minSwipe = 8) {
+    if (Math.abs(dx) < minSwipe && Math.abs(dy) < minSwipe) return null;
+    if (this.rotated) {
+      if (Math.abs(dx) > Math.abs(dy)) return null;
+      return dy > 0 ? 1 : -1;
+    }
+    if (Math.abs(dx) < Math.abs(dy)) return null;
+    return dx > 0 ? 1 : -1;
   }
 
   setShowGrid(on) {
