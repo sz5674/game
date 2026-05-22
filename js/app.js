@@ -159,7 +159,7 @@ function isLevelWip(lv) {
   return !!lv.wip || lv.id >= 15;
 }
 
-/** スマホ：縦持ちのまま画面全体を90°回転 */
+/** スマホ縦持ち：盤面のみ90°回転 */
 function updateMobileLayout() {
   const mobile = window.matchMedia("(max-width: 900px)").matches;
   document.documentElement.classList.toggle("game-mobile", mobile);
@@ -169,8 +169,8 @@ function updateMobileLayout() {
 /** ツールバー高さを CSS 変数に反映し、盤面レイアウトを再計算 */
 function fitStageToViewport() {
   updateMobileLayout();
-  const header = $("#app > header.toolbar");
-  const footer = $("#app > footer.toolbar");
+  const header = $("#app > header.game-chrome");
+  const footer = $("#app > footer.game-chrome");
   const fit = $("#stage-fit");
   const scaler = $("#stage-scaler");
   if (header && footer) {

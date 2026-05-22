@@ -211,13 +211,22 @@ export class Stage {
     this.rotated = !!on;
   }
 
-  /** 画面が90°回転しているときは縦スワイプがゲームの左右 */
+  /** スワイプを盤面座標に変換（盤面90°回転時も画面の左右スワイプで操作） */
   slideDirFromSwipe(dx, dy, minSwipe = 8) {
     if (Math.abs(dx) < minSwipe && Math.abs(dy) < minSwipe) return null;
+
     if (this.rotated) {
-      if (Math.abs(dx) > Math.abs(dy)) return null;
-      return dy > 0 ? 1 : -1;
+      const rotator = document.getElementById("stage-rotator");
+      if (rotator) {
+        const m = new DOMMatrix(getComputedStyle(rotator).transform);
+        if (!m.isIdentity) {
+          const local = new DOMPoint(dx, dy).matrixTransform(m.inverse());
+          if (Math.abs(local.x) < Math.abs(local.y)) return null;
+          return local.x > 0 ? 1 : -1;
+        }
+      }
     }
+
     if (Math.abs(dx) < Math.abs(dy)) return null;
     return dx > 0 ? 1 : -1;
   }
