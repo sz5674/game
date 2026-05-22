@@ -159,15 +159,11 @@ function isLevelWip(lv) {
   return !!lv.wip || lv.id >= 15;
 }
 
-/** スマホ横持ち用レイアウト */
+/** スマホ：縦持ちのまま画面全体を90°回転 */
 function updateMobileLayout() {
   const mobile = window.matchMedia("(max-width: 900px)").matches;
   document.documentElement.classList.toggle("game-mobile", mobile);
-  const hint = $("#rotate-hint");
-  if (hint) {
-    const portrait = mobile && window.matchMedia("(orientation: portrait)").matches;
-    hint.hidden = !portrait;
-  }
+  if (stage) stage.setRotated(mobile);
 }
 
 /** ツールバー高さを CSS 変数に反映し、盤面レイアウトを再計算 */
@@ -191,12 +187,6 @@ function fitStageToViewport() {
     scaler.style.transform = "";
   }
   if (stage) stage.remountLayout();
-}
-
-/** 横持ち固定（対応ブラウザのみ・失敗しても問題なし） */
-function tryLockLandscape() {
-  if (!window.matchMedia("(max-width: 900px)").matches) return;
-  screen.orientation?.lock?.("landscape").catch(() => {});
 }
 
 function scheduleStageFit() {
@@ -239,6 +229,7 @@ function mountLevel(id) {
     onClear: () => onLevelClear(lv.id),
     onStateChange: () => persistCurrentBoard(lv.id),
   });
+  updateMobileLayout();
   const cleared = isLevelCleared(lv.id);
   let label = `Level ${lv.id}`;
   if (wip) label += "（修正中）";
@@ -393,7 +384,6 @@ async function main() {
   applyTheme(settings);
   updateMobileLayout();
   bindUI();
-  tryLockLandscape();
 
   const progress = loadProgress();
   const startLv = LEVELS.some((l) => l.id === progress.lastLevel)
