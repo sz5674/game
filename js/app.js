@@ -1,4 +1,4 @@
-import { Stage } from "./engine.js?v=13";
+import { Stage } from "./engine.js?v=14";
 
 const STORAGE_KEY = "yugopuzzle-web-progress";
 const SETTINGS_KEY = "yugopuzzle-web-settings";
@@ -367,7 +367,6 @@ function bindUI() {
 
   $("#btn-undo").addEventListener("click", () => {
     stage?.undo();
-    scheduleStageFit();
   });
   $("#btn-reset").addEventListener("click", () => {
     clearBoardState(currentLevel);

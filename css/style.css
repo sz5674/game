@@ -164,6 +164,12 @@ body {
   touch-action: none;
 }
 
+/* 戻す・リセット時はアニメなしで一瞬で盤面を差し替え */
+#map.instant-layout .jellybox {
+  transition: none !important;
+  animation: none !important;
+}
+
 #map table {
   border-collapse: collapse;
 }
