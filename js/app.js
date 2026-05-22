@@ -27,16 +27,60 @@ async function loadLevels() {
   }
 }
 
+/** @returns {{ lastLevel: number, cleared: Record<number, boolean> }} */
+function normalizeProgress(raw) {
+  const cleared = {};
+  let lastLevel = 1;
+  if (raw && typeof raw === "object") {
+    if (raw.cleared && typeof raw.cleared === "object") {
+      for (const [k, v] of Object.entries(raw.cleared)) {
+        if (v) cleared[Number(k)] = true;
+      }
+      lastLevel = Number(raw.lastLevel ?? raw.last) || 1;
+    } else {
+      for (const [k, v] of Object.entries(raw)) {
+        if (k === "last" || k === "lastLevel") lastLevel = Number(v) || 1;
+        else if (v === true) cleared[Number(k)] = true;
+      }
+    }
+  }
+  return { lastLevel, cleared };
+}
+
 function loadProgress() {
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+    return normalizeProgress(JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"));
   } catch {
-    return {};
+    return { lastLevel: 1, cleared: {} };
   }
 }
 
 function saveProgress(progress) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+  localStorage.setItem(
+    STORAGE_KEY,
+    JSON.stringify({
+      lastLevel: progress.lastLevel,
+      cleared: progress.cleared,
+      updatedAt: new Date().toISOString(),
+    })
+  );
+}
+
+function isLevelCleared(id) {
+  return !!loadProgress().cleared[id];
+}
+
+function markLevelCleared(id) {
+  const progress = loadProgress();
+  progress.cleared[id] = true;
+  progress.lastLevel = id;
+  saveProgress(progress);
+}
+
+function setLastPlayedLevel(id) {
+  const progress = loadProgress();
+  progress.lastLevel = id;
+  saveProgress(progress);
 }
 
 function loadSettings() {
@@ -66,6 +110,8 @@ function applyTheme(settings) {
     btnGrid.setAttribute("aria-pressed", settings.grid ? "true" : "false");
     btnGrid.classList.toggle("active", settings.grid);
   }
+  const gridState = $("#btn-grid-state");
+  if (gridState) gridState.textContent = settings.grid ? "ON" : "OFF";
 }
 
 function applyGrid(settings) {
@@ -137,7 +183,12 @@ function mountLevel(id) {
     onClear: () => onLevelClear(lv.id),
   });
 
-  $("#level-label").textContent = wip ? `Level ${lv.id}（修正中）` : `Level ${lv.id}`;
+  const cleared = isLevelCleared(lv.id);
+  let label = `Level ${lv.id}`;
+  if (wip) label += "（修正中）";
+  else if (cleared) label += "（クリア済）";
+  $("#level-label").textContent = label;
+  setLastPlayedLevel(lv.id);
   updateMenuHighlight();
   scheduleStageFit();
 }
@@ -183,11 +234,10 @@ function playClearCelebration(levelId) {
 }
 
 function onLevelClear(id) {
-  const progress = loadProgress();
-  progress[id] = true;
-  progress.last = id;
-  saveProgress(progress);
+  markLevelCleared(id);
   playClearCelebration(id);
+  const label = $("#level-label");
+  if (label) label.textContent = `Level ${id}（クリア済）`;
   renderLevelGrid();
 }
 
@@ -198,8 +248,11 @@ function renderLevelGrid() {
   for (const lv of LEVELS) {
     const btn = document.createElement("button");
     btn.type = "button";
-    btn.textContent = String(lv.id);
-    if (progress[lv.id]) btn.classList.add("cleared");
+    const cleared = progress.cleared[lv.id];
+    btn.innerHTML = `<span class="lv-num">${lv.id}</span>${
+      cleared ? '<span class="lv-badge">クリア</span>' : ""
+    }`;
+    if (cleared) btn.classList.add("cleared");
     if (isLevelWip(lv)) btn.classList.add("wip");
     if (lv.id === currentLevel) btn.classList.add("current");
     btn.addEventListener("click", () => {
@@ -282,8 +335,9 @@ async function main() {
   bindUI();
 
   const progress = loadProgress();
-  const start = progress.last ? Math.min(progress.last + 1, LEVELS[LEVELS.length - 1].id) : 1;
-  const startLv = LEVELS.find((l) => l.id === start) ? start : 1;
+  const startLv = LEVELS.some((l) => l.id === progress.lastLevel)
+    ? progress.lastLevel
+    : 1;
   mountLevel(startLv);
 }
 
