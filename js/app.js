@@ -1,4 +1,4 @@
-import { Stage } from "./engine.js";
+import { Stage } from "./engine.js?v=7";
 
 const STORAGE_KEY = "yugopuzzle-web-progress";
 const SETTINGS_KEY = "yugopuzzle-web-settings";
@@ -76,7 +76,14 @@ function saveProgress(progress) {
 }
 
 function loadBoardState(levelId) {
-  return loadProgress().boards[levelId] ?? null;
+  const rows = loadProgress().boards[levelId];
+  if (!rows?.length) return null;
+  const lv = getLevel(levelId);
+  if (!lv?.rows?.length) return rows;
+  if (rows.length !== lv.rows.length) return null;
+  const cols = lv.rows[0].length;
+  if (!rows.every((r) => String(r).length === cols)) return null;
+  return rows.map((r) => String(r));
 }
 
 function clearBoardState(levelId) {
@@ -159,16 +166,20 @@ function isLevelWip(lv) {
   return !!lv.wip || lv.id >= 15;
 }
 
-/** ツールバー高さを CSS 変数に反映し、スマホ用 --cell を再計算 */
-function fitStageToViewport() {
+function updateChromeVar() {
   const header = $("#app > header.toolbar");
   const footer = $("#app > footer.toolbar");
-  const fit = $("#stage-fit");
-  const scaler = $("#stage-scaler");
   if (header && footer) {
     const chrome = header.offsetHeight + footer.offsetHeight + 16;
     document.documentElement.style.setProperty("--chrome-v", `${chrome}px`);
   }
+}
+
+/** ツールバー高さを CSS 変数に反映し、スマホ用 --cell を再計算 */
+function fitStageToViewport() {
+  updateChromeVar();
+  const fit = $("#stage-fit");
+  const scaler = $("#stage-scaler");
   if (fit) {
     fit.style.width = "";
     fit.style.height = "";
@@ -213,7 +224,7 @@ function mountLevel(id) {
   const wipOverlay = $("#wip-overlay");
   if (wipOverlay) wipOverlay.hidden = !wip;
   applyGrid(settings);
-  fitStageToViewport();
+  updateChromeVar();
 
   stage = new Stage(map, playRows, {
     showGrid: settings.grid,
@@ -229,6 +240,7 @@ function mountLevel(id) {
   $("#level-label").textContent = label;
   setLastPlayedLevel(lv.id);
   updateMenuHighlight();
+  fitStageToViewport();
   scheduleStageFit();
 }
 

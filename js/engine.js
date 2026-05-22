@@ -10,8 +10,9 @@ export function cellSize() {
   if (map) {
     const td = map.querySelector("table td");
     if (td) {
-      const w = td.getBoundingClientRect().width;
-      if (w > 0) return w;
+      const { width, height } = td.getBoundingClientRect();
+      const s = Math.max(width, height);
+      if (s > 0) return s;
     }
   }
   const n = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--cell"));
@@ -281,8 +282,14 @@ export class Stage {
     const s = cellSize();
     const cols = this.cells[0].length;
     const rows = this.cells.length;
-    this.dom.style.width = `${cols * s}px`;
-    this.dom.style.height = `${rows * s}px`;
+    const table = this.dom.querySelector("table");
+    const tableRect = table?.getBoundingClientRect();
+    const w =
+      tableRect && tableRect.width > 0 ? tableRect.width : Math.round(cols * s);
+    const h =
+      tableRect && tableRect.height > 0 ? tableRect.height : Math.round(rows * s);
+    this.dom.style.width = `${w}px`;
+    this.dom.style.height = `${h}px`;
     for (const jelly of this.jellies) {
       if (!jelly.cells?.length) continue;
       jelly.updatePosition(jelly.x, jelly.y);
