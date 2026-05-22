@@ -1,4 +1,4 @@
-import { Stage } from "./engine.js?v=12";
+import { Stage } from "./engine.js?v=13";
 
 const STORAGE_KEY = "yugopuzzle-web-progress";
 const SETTINGS_KEY = "yugopuzzle-web-settings";
@@ -64,15 +64,19 @@ function loadProgress() {
 }
 
 function saveProgress(progress) {
-  localStorage.setItem(
-    STORAGE_KEY,
-    JSON.stringify({
-      lastLevel: progress.lastLevel,
-      cleared: progress.cleared,
-      boards: progress.boards ?? {},
-      updatedAt: new Date().toISOString(),
-    })
-  );
+  try {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        lastLevel: progress.lastLevel,
+        cleared: progress.cleared,
+        boards: progress.boards ?? {},
+        updatedAt: new Date().toISOString(),
+      })
+    );
+  } catch (err) {
+    console.warn("進行状況を保存できませんでした（ストレージ制限の可能性）", err);
+  }
 }
 
 function boardDimensions(rows) {
@@ -80,15 +84,20 @@ function boardDimensions(rows) {
   return { cols: Math.max(...lines.map((r) => r.length), 1), rows: lines.length };
 }
 
+/** 保存盤面をレベル定義の行数・列数に合わせる（行長ぶれは切り詰め／パディング） */
+function normalizeSavedBoard(rawRows, templateRows) {
+  const expected = boardDimensions(templateRows);
+  const lines = rawRows.map((r) => String(r));
+  if (lines.length !== expected.rows) return null;
+  return lines.map((line) => line.padEnd(expected.cols, " ").slice(0, expected.cols));
+}
+
 function loadBoardState(levelId) {
   const rows = loadProgress().boards[levelId];
   if (!rows?.length) return null;
   const lv = getLevel(levelId);
   if (!lv?.rows?.length) return rows.map((r) => String(r));
-  const expected = boardDimensions(lv.rows);
-  const saved = boardDimensions(rows);
-  if (saved.rows !== expected.rows || saved.cols !== expected.cols) return null;
-  return rows.map((r) => String(r));
+  return normalizeSavedBoard(rows, lv.rows);
 }
 
 function clearBoardState(levelId) {
@@ -99,9 +108,13 @@ function clearBoardState(levelId) {
   }
 }
 
-/** いまの盤面をレベルごとに保存（別レベルへ移る前・手を指したあと） */
-function persistCurrentBoard(levelId = currentLevel) {
-  if (!stage || stage.busy || !levelId) return;
+/**
+ * いまの盤面をレベルごとに保存（別レベルへ移る前・手を指したあと）
+ * @param {{ force?: boolean }} opts force=true ならアニメ中でも保存（レベル切替時）
+ */
+function persistCurrentBoard(levelId = currentLevel, { force = false } = {}) {
+  if (!stage || !levelId) return;
+  if (!force && stage.busy) return;
   const progress = loadProgress();
   progress.boards[levelId] = stage.snapshot().map((r) => String(r));
   saveProgress(progress);
@@ -228,7 +241,7 @@ function mountLevel(id) {
   if (!lv) return;
 
   if (stage && currentLevel !== lv.id) {
-    persistCurrentBoard(currentLevel);
+    persistCurrentBoard(currentLevel, { force: true });
   }
 
   currentLevel = lv.id;
@@ -345,7 +358,12 @@ function bindUI() {
     setTimeout(scheduleStageFit, 500);
   });
   window.visualViewport?.addEventListener("resize", scheduleStageFit);
-  window.addEventListener("pagehide", () => persistCurrentBoard());
+  window.addEventListener("pagehide", () => persistCurrentBoard(currentLevel, { force: true }));
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") {
+      persistCurrentBoard(currentLevel, { force: true });
+    }
+  });
 
   $("#btn-undo").addEventListener("click", () => {
     stage?.undo();
@@ -366,6 +384,7 @@ function bindUI() {
     if (i >= 0 && i < LEVELS.length - 1) mountLevel(LEVELS[i + 1].id);
   });
   $("#btn-menu").addEventListener("click", () => {
+    persistCurrentBoard(currentLevel, { force: true });
     renderLevelGrid();
     $("#menu-dialog").showModal();
   });
