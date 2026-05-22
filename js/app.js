@@ -159,18 +159,10 @@ function isLevelWip(lv) {
   return !!lv.wip || lv.id >= 15;
 }
 
-/** スマホ縦持ち：盤面のみ90°回転 */
-function updateMobileLayout() {
-  const mobile = window.matchMedia("(max-width: 900px)").matches;
-  document.documentElement.classList.toggle("game-mobile", mobile);
-  if (stage) stage.setRotated(mobile);
-}
-
-/** ツールバー高さを CSS 変数に反映し、盤面レイアウトを再計算 */
+/** ツールバー高さを CSS 変数に反映し、スマホ用 --cell を再計算 */
 function fitStageToViewport() {
-  updateMobileLayout();
-  const header = $("#app > header.game-chrome");
-  const footer = $("#app > footer.game-chrome");
+  const header = $("#app > header.toolbar");
+  const footer = $("#app > footer.toolbar");
   const fit = $("#stage-fit");
   const scaler = $("#stage-scaler");
   if (header && footer) {
@@ -221,7 +213,7 @@ function mountLevel(id) {
   const wipOverlay = $("#wip-overlay");
   if (wipOverlay) wipOverlay.hidden = !wip;
   applyGrid(settings);
-  updateMobileLayout();
+  fitStageToViewport();
 
   stage = new Stage(map, playRows, {
     showGrid: settings.grid,
@@ -229,7 +221,7 @@ function mountLevel(id) {
     onClear: () => onLevelClear(lv.id),
     onStateChange: () => persistCurrentBoard(lv.id),
   });
-  updateMobileLayout();
+
   const cleared = isLevelCleared(lv.id);
   let label = `Level ${lv.id}`;
   if (wip) label += "（修正中）";
@@ -382,7 +374,6 @@ async function main() {
   await loadLevels();
   const settings = loadSettings();
   applyTheme(settings);
-  updateMobileLayout();
   bindUI();
 
   const progress = loadProgress();

@@ -161,11 +161,13 @@ export class Jelly {
       const p = pointer(e);
       const dx = p.x - startX;
       const dy = p.y - startY;
-      const dir = this.stage.slideDirFromSwipe(dx, dy, 8);
-      if (dir == null) return;
+      // 方向だけ判定。距離・ホールド時間は無視し、常に1マスだけ
+      const minSwipe = 8;
+      if (Math.abs(dx) < minSwipe && Math.abs(dy) < minSwipe) return;
+      if (Math.abs(dx) < Math.abs(dy)) return;
 
       acted = true;
-      this.stage.trySlide(this, dir);
+      this.stage.trySlide(this, dx > 0 ? 1 : -1);
       e.preventDefault();
     };
 
@@ -194,7 +196,6 @@ export class Stage {
     this.jellies = [];
     this.history = [];
     this.busy = false;
-    this.rotated = false;
     this.num_monochromatic_blocks = 0;
     this.num_colors = 0;
     this.loadMap(rows);
@@ -205,30 +206,6 @@ export class Stage {
 
   _notifyStateChange() {
     this.opts.onStateChange?.();
-  }
-
-  setRotated(on) {
-    this.rotated = !!on;
-  }
-
-  /** スワイプを盤面座標に変換（盤面90°回転時も画面の左右スワイプで操作） */
-  slideDirFromSwipe(dx, dy, minSwipe = 8) {
-    if (Math.abs(dx) < minSwipe && Math.abs(dy) < minSwipe) return null;
-
-    if (this.rotated) {
-      const rotator = document.getElementById("stage-rotator");
-      if (rotator) {
-        const m = new DOMMatrix(getComputedStyle(rotator).transform);
-        if (!m.isIdentity) {
-          const local = new DOMPoint(dx, dy).matrixTransform(m.inverse());
-          if (Math.abs(local.x) < Math.abs(local.y)) return null;
-          return local.x > 0 ? 1 : -1;
-        }
-      }
-    }
-
-    if (Math.abs(dx) < Math.abs(dy)) return null;
-    return dx > 0 ? 1 : -1;
   }
 
   setShowGrid(on) {
