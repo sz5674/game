@@ -162,8 +162,6 @@ body {
   margin: 0 auto;
   user-select: none;
   touch-action: none;
-  width: calc(var(--cell) * var(--board-cols));
-  height: calc(var(--cell) * var(--board-rows));
 }
 
 #map table {

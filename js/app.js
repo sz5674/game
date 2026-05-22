@@ -111,8 +111,9 @@ function scheduleStageFit() {
     run();
     requestAnimationFrame(run);
   });
-  setTimeout(run, 120);
-  setTimeout(run, 400);
+  setTimeout(run, 50);
+  setTimeout(run, 200);
+  setTimeout(run, 500);
 }
 
 function mountLevel(id) {
