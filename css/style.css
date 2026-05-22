@@ -88,10 +88,25 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  overflow: auto;
-  padding: 12px;
-  padding-bottom: max(12px, env(safe-area-inset-bottom));
+  overflow: hidden;
+  padding: 8px;
+  padding-bottom: max(8px, env(safe-area-inset-bottom));
   position: relative;
+  min-height: 0;
+}
+
+#stage-fit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+#stage-scaler {
+  position: relative;
+  transform-origin: center center;
+  flex-shrink: 0;
 }
 
 #map.level-wip {
@@ -100,11 +115,16 @@ body {
   pointer-events: none;
 }
 
+#map {
+  position: relative;
+}
+
 .wip-overlay {
   position: absolute;
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
+  z-index: 6;
   margin: 0;
   padding: 14px 28px;
   font-size: 1.35rem;
@@ -524,6 +544,33 @@ dialog.clear-dialog::backdrop {
   align-items: center;
   gap: 10px;
   margin: 12px 0;
+}
+
+/* スマホ：横長盤面を画面内に収める（JS で stage-scaler を縮小） */
+@media (max-width: 900px) {
+  #stage-wrap {
+    padding: 4px;
+  }
+
+  .toolbar {
+    padding: 6px 8px;
+    gap: 4px;
+    padding-top: max(6px, env(safe-area-inset-top));
+  }
+
+  .footer-bar {
+    padding-bottom: max(6px, env(safe-area-inset-bottom));
+  }
+
+  .icon-btn,
+  .text-btn {
+    padding: 6px 8px;
+    font-size: 0.82rem;
+  }
+
+  .level-label {
+    font-size: 0.85rem;
+  }
 }
 
 .text-btn.active {

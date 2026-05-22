@@ -83,6 +83,39 @@ function isLevelWip(lv) {
   return !!lv.wip || lv.id >= 15;
 }
 
+/** 横長盤面を stage-wrap 内に収める（スマホで横スクロール不要） */
+function fitStageToViewport() {
+  const wrap = $("#stage-wrap");
+  const fit = $("#stage-fit");
+  const scaler = $("#stage-scaler");
+  const map = $("#map");
+  if (!wrap || !fit || !scaler || !map) return;
+
+  const mapW = map.offsetWidth;
+  const mapH = map.offsetHeight;
+  if (!mapW || !mapH) return;
+
+  const cs = getComputedStyle(wrap);
+  const padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+  const padY = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+  const availW = Math.max(0, wrap.clientWidth - padX);
+  const availH = Math.max(0, wrap.clientHeight - padY);
+  const scale = Math.min(1, availW / mapW, availH / mapH);
+
+  scaler.style.width = `${mapW}px`;
+  scaler.style.height = `${mapH}px`;
+  scaler.style.transform = `scale(${scale})`;
+  fit.style.width = `${Math.floor(mapW * scale)}px`;
+  fit.style.height = `${Math.floor(mapH * scale)}px`;
+}
+
+function scheduleStageFit() {
+  requestAnimationFrame(() => {
+    fitStageToViewport();
+    requestAnimationFrame(fitStageToViewport);
+  });
+}
+
 function mountLevel(id) {
   stopClearCelebration();
   const lv = getLevel(id);
@@ -105,6 +138,7 @@ function mountLevel(id) {
 
   $("#level-label").textContent = wip ? `Level ${lv.id}（修正中）` : `Level ${lv.id}`;
   updateMenuHighlight();
+  scheduleStageFit();
 }
 
 function stopClearCelebration() {
@@ -180,8 +214,19 @@ function updateMenuHighlight() {
 }
 
 function bindUI() {
-  $("#btn-undo").addEventListener("click", () => stage?.undo());
-  $("#btn-reset").addEventListener("click", () => stage?.reset(initialRows));
+  window.addEventListener("resize", scheduleStageFit);
+  window.addEventListener("orientationchange", () => {
+    setTimeout(scheduleStageFit, 100);
+  });
+
+  $("#btn-undo").addEventListener("click", () => {
+    stage?.undo();
+    scheduleStageFit();
+  });
+  $("#btn-reset").addEventListener("click", () => {
+    stage?.reset(initialRows);
+    scheduleStageFit();
+  });
   $("#btn-prev").addEventListener("click", () => {
     const i = LEVELS.findIndex((l) => l.id === currentLevel);
     if (i > 0) mountLevel(LEVELS[i - 1].id);
