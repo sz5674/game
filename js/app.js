@@ -1,4 +1,4 @@
-import { Stage } from "./engine.js?v=11";
+import { Stage } from "./engine.js?v=12";
 
 const STORAGE_KEY = "yugopuzzle-web-progress";
 const SETTINGS_KEY = "yugopuzzle-web-settings";
