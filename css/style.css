@@ -1,0 +1,536 @@
+:root {
+  --bg: #f5f0e8;
+  --surface: #fff;
+  --text: #2d2a26;
+  --muted: #6b6560;
+  --accent: #5b8def;
+  --wall: #888;
+  --cell: 42px;
+}
+
+[data-theme="dark"] {
+  --bg: #1a1a2e;
+  --surface: #252540;
+  --text: #eee;
+  --muted: #aaa;
+  --wall: #666;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  touch-action: manipulation;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-width: 100vw;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  padding-top: max(8px, env(safe-area-inset-top));
+  background: var(--surface);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  flex-shrink: 0;
+}
+
+.toolbar-right {
+  margin-left: auto;
+  display: flex;
+  gap: 4px;
+}
+
+.level-label {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.icon-btn,
+.text-btn {
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.9rem;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.icon-btn:active,
+.text-btn:active {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.text-btn.primary {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+#stage-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: auto;
+  padding: 12px;
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+  position: relative;
+}
+
+#map.level-wip {
+  opacity: 0.32;
+  filter: grayscale(0.85);
+  pointer-events: none;
+}
+
+.wip-overlay {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  margin: 0;
+  padding: 14px 28px;
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 12px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+  z-index: 5;
+  pointer-events: none;
+}
+
+[data-theme="dark"] .wip-overlay {
+  background: rgba(37, 37, 64, 0.92);
+}
+
+#map {
+  position: relative;
+  margin: 0 auto;
+  user-select: none;
+  touch-action: none;
+}
+
+#map table {
+  border-collapse: collapse;
+}
+
+#map td.cell {
+  width: var(--cell);
+  height: var(--cell);
+  padding: 0;
+  position: relative;
+}
+
+#map td.wall {
+  background: var(--wall);
+  border-radius: 0;
+}
+
+#map td.transparent {
+  background: transparent;
+}
+
+.jellybox {
+  position: absolute;
+  z-index: 2;
+  transform-style: flat;
+  transform-origin: 50% 100%;
+  isolation: isolate;
+  transition:
+    left 0.11s cubic-bezier(0.32, 1.05, 0.48, 1),
+    top 0.11s cubic-bezier(0.32, 1.05, 0.48, 1);
+  pointer-events: auto;
+  cursor: grab;
+  transform: translate(0, 0) scale(1, 1);
+  will-change: left, top, transform;
+}
+
+.jellybox.hop-fail {
+  transition: none;
+  animation: jelly-hop-fail 0.16s cubic-bezier(0.34, 1.1, 0.64, 1);
+}
+
+/* 接地時の横移動：少し右上へ跳ねる程度（ストンッと） */
+.jellybox.sliding:not(.airborne) {
+  transition:
+    left 0.11s cubic-bezier(0.32, 1.05, 0.48, 1),
+    top 0.11s cubic-bezier(0.32, 1.05, 0.48, 1);
+  animation: jelly-slide-hop 0.16s cubic-bezier(0.34, 1.1, 0.64, 1);
+}
+
+.jellybox.sliding {
+  transition:
+    left 0.11s cubic-bezier(0.32, 1.05, 0.48, 1),
+    top 0.11s cubic-bezier(0.32, 1.05, 0.48, 1);
+}
+
+/* 空中の横移動：浮かせずサッと横だけ */
+.jellybox.sliding.airborne {
+  animation: none;
+  transition:
+    left 0.06s cubic-bezier(0.55, 0, 0.92, 0.5),
+    top 0.06s cubic-bezier(0.55, 0, 0.92, 0.5);
+}
+
+/* 落下：ストーンと落とす（速い・加速） */
+.jellybox.sliding.falling {
+  animation: none;
+  transition:
+    left 0.06s ease-out,
+    top 0.06s cubic-bezier(0.65, 0.12, 0.95, 0.35);
+}
+
+.jellybox.drop-impact {
+  transition: none;
+  animation: jelly-drop-impact 0.1s cubic-bezier(0.34, 1.15, 0.64, 1);
+}
+
+@keyframes jelly-slide-hop {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  35% {
+    transform: translate3d(
+      calc(var(--slide-dir, 1) * var(--cell) * 0.1),
+      calc(var(--cell) * -0.12),
+      0
+    );
+  }
+  55% {
+    transform: translate3d(
+      calc(var(--slide-dir, 1) * var(--cell) * 0.06),
+      calc(var(--cell) * -0.04),
+      0
+    );
+  }
+}
+
+/* 移動中だけ外枠の影を消す（形・重なりは維持して真四角化を防ぐ） */
+.jellybox.is-merged.sliding .jelly-cell {
+  box-shadow: none !important;
+}
+
+@keyframes jelly-drop-impact {
+  0% {
+    transform: scale(1.14, 0.78);
+  }
+  40% {
+    transform: scale(0.94, 1.06);
+  }
+  100% {
+    transform: scale(1, 1);
+  }
+}
+
+@keyframes jelly-hop-fail {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1, 1);
+  }
+  28% {
+    transform: translate(calc(var(--slide-dir, 1) * var(--cell) * 0.1), calc(var(--cell) * -0.14))
+      scale(1.07, 0.91);
+  }
+  52% {
+    transform: translate(calc(var(--slide-dir, 1) * var(--cell) * 0.04), calc(var(--cell) * -0.04))
+      scale(0.97, 1.03);
+  }
+}
+
+.jellybox.dragging {
+  cursor: grabbing;
+  z-index: 10;
+  transition: none;
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .jellybox {
+    transition-duration: 0.12s;
+    animation: none !important;
+  }
+}
+
+.jelly-cell {
+  position: absolute;
+  width: var(--cell);
+  height: var(--cell);
+  border: none;
+  border-radius: 0;
+  box-sizing: border-box;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: translateZ(0);
+}
+
+.jelly-cell.face::after {
+  content: "◕‿◕";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.55rem;
+  opacity: 0.85;
+}
+
+.footer-bar {
+  justify-content: space-between;
+  padding-bottom: max(8px, env(safe-area-inset-bottom));
+}
+
+dialog {
+  border: none;
+  border-radius: 16px;
+  padding: 20px;
+  max-width: min(360px, 92vw);
+  background: var(--surface);
+  color: var(--text);
+}
+
+dialog::backdrop {
+  background: rgba(0, 0, 0, 0.45);
+}
+
+/* --- クリア演出 --- */
+#clear-fx {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 90;
+  overflow: hidden;
+}
+
+.confetti-piece {
+  position: absolute;
+  top: -8px;
+  width: 6px;
+  height: 8px;
+  border-radius: 2px;
+  opacity: 0.45;
+  animation: confetti-fall 1.6s ease-out forwards;
+}
+
+.clear-burst {
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  width: 20vmin;
+  height: 20vmin;
+  margin: -10vmin 0 0 -10vmin;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(91, 141, 239, 0.28) 0%,
+    rgba(91, 141, 239, 0.08) 45%,
+    transparent 72%
+  );
+  animation: clear-burst 0.5s ease-out forwards;
+}
+
+body.clear-celebrate #stage-wrap {
+  animation: clear-stage-pop 0.4s cubic-bezier(0.34, 1.25, 0.64, 1);
+}
+
+body.clear-celebrate .jellybox.clear-party {
+  animation: clear-jelly-party 0.45s ease-in-out 2 alternate;
+}
+
+@keyframes confetti-fall {
+  0% {
+    transform: translate(0, 0) rotate(0deg) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--drift, 0), 110vh) rotate(var(--rot, 360deg)) scale(0.6);
+    opacity: 0.85;
+  }
+}
+
+@keyframes clear-burst {
+  0% {
+    transform: scale(0.2);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(2.8);
+    opacity: 0;
+  }
+}
+
+@keyframes clear-stage-pop {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.04);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes clear-jelly-party {
+  0% {
+    transform: scale(1, 1) rotate(-2deg);
+  }
+  100% {
+    transform: scale(1.08, 0.92) rotate(2deg);
+  }
+}
+
+@keyframes clear-dialog-pop {
+  0% {
+    transform: scale(0.88);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+dialog.clear-dialog {
+  border: none;
+  padding: 0;
+  max-width: min(340px, 92vw);
+  background: transparent;
+  color: var(--text);
+  overflow: visible;
+}
+
+dialog.clear-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(3px);
+  animation: clear-backdrop-in 0.35s ease-out;
+}
+
+@keyframes clear-backdrop-in {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.clear-dialog-body {
+  position: relative;
+  padding: 28px 24px 22px;
+  border-radius: 16px;
+  background: var(--surface);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.22);
+  animation: clear-dialog-pop 0.4s cubic-bezier(0.34, 1.2, 0.64, 1);
+}
+
+[data-theme="dark"] .clear-dialog-body {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.clear-title {
+  margin: 0 0 6px;
+  font-size: 1.75rem;
+  font-weight: 700;
+  text-align: center;
+  color: var(--accent);
+}
+
+.clear-level {
+  margin: 0 0 20px;
+  text-align: center;
+  font-size: 0.95rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.clear-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.clear-actions .text-btn.primary {
+  font-size: 1rem;
+  padding: 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.clear-celebrate #stage-wrap,
+  body.clear-celebrate .jellybox.clear-party,
+  .confetti-piece,
+  .clear-burst,
+  .clear-dialog-body {
+    animation: none !important;
+  }
+}
+
+.level-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  margin: 16px 0;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.level-grid button {
+  aspect-ratio: 1;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.level-grid button.cleared {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.level-grid button.current {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.level-grid button.wip {
+  opacity: 0.55;
+}
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.text-btn.active {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+#map.show-grid td.cell {
+  box-shadow: inset 0 0 0 1px rgba(128, 128, 128, 0.38);
+}
