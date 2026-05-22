@@ -1,4 +1,4 @@
-import { Stage } from "./engine.js?v=7";
+import { Stage } from "./engine.js?v=8";
 
 const STORAGE_KEY = "yugopuzzle-web-progress";
 const SETTINGS_KEY = "yugopuzzle-web-settings";
@@ -75,14 +75,19 @@ function saveProgress(progress) {
   );
 }
 
+function boardDimensions(rows) {
+  const lines = rows.map((r) => String(r));
+  return { cols: Math.max(...lines.map((r) => r.length), 1), rows: lines.length };
+}
+
 function loadBoardState(levelId) {
   const rows = loadProgress().boards[levelId];
   if (!rows?.length) return null;
   const lv = getLevel(levelId);
-  if (!lv?.rows?.length) return rows;
-  if (rows.length !== lv.rows.length) return null;
-  const cols = lv.rows[0].length;
-  if (!rows.every((r) => String(r).length === cols)) return null;
+  if (!lv?.rows?.length) return rows.map((r) => String(r));
+  const expected = boardDimensions(lv.rows);
+  const saved = boardDimensions(rows);
+  if (saved.rows !== expected.rows || saved.cols !== expected.cols) return null;
   return rows.map((r) => String(r));
 }
 
@@ -175,7 +180,22 @@ function updateChromeVar() {
   }
 }
 
-/** ツールバー高さを CSS 変数に反映し、スマホ用 --cell を再計算 */
+function applyBoardSize(rows) {
+  const { cols, rows: rowCount } = boardDimensions(rows);
+  document.documentElement.style.setProperty("--board-cols", String(cols));
+  document.documentElement.style.setProperty("--board-rows", String(rowCount));
+}
+
+function resetMapLayout() {
+  const map = $("#map");
+  if (map) {
+    map.style.width = "";
+    map.style.height = "";
+  }
+  document.documentElement.style.removeProperty("--cell");
+}
+
+/** ツールバー高さを CSS 変数に反映し、盤面レイアウトを再計算 */
 function fitStageToViewport() {
   updateChromeVar();
   const fit = $("#stage-fit");
@@ -192,15 +212,14 @@ function fitStageToViewport() {
   if (stage) stage.remountLayout();
 }
 
+let stageFitToken = 0;
 function scheduleStageFit() {
-  const run = () => fitStageToViewport();
-  requestAnimationFrame(() => {
-    run();
-    requestAnimationFrame(run);
-  });
-  setTimeout(run, 50);
-  setTimeout(run, 200);
-  setTimeout(run, 500);
+  const token = ++stageFitToken;
+  const run = () => {
+    if (token !== stageFitToken) return;
+    fitStageToViewport();
+  };
+  requestAnimationFrame(() => requestAnimationFrame(run));
 }
 
 function mountLevel(id) {
@@ -224,6 +243,8 @@ function mountLevel(id) {
   const wipOverlay = $("#wip-overlay");
   if (wipOverlay) wipOverlay.hidden = !wip;
   applyGrid(settings);
+  resetMapLayout();
+  applyBoardSize(initialRows);
   updateChromeVar();
 
   stage = new Stage(map, playRows, {
@@ -240,7 +261,6 @@ function mountLevel(id) {
   $("#level-label").textContent = label;
   setLastPlayedLevel(lv.id);
   updateMenuHighlight();
-  fitStageToViewport();
   scheduleStageFit();
 }
 

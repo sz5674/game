@@ -3,25 +3,32 @@
 /** @deprecated 互換用。実サイズは CSS の --cell を参照 */
 export const CELL_SIZE = 42;
 
+/** CSS の min() で決まったマス幅（インライン --cell を無視） */
+function cssCellSize() {
+  if (typeof document === "undefined") return CELL_SIZE;
+  const root = document.documentElement;
+  const saved = root.style.getPropertyValue("--cell");
+  root.style.removeProperty("--cell");
+  const n = parseFloat(getComputedStyle(root).getPropertyValue("--cell"));
+  if (saved) root.style.setProperty("--cell", saved);
+  return Number.isFinite(n) && n > 0 ? n : CELL_SIZE;
+}
+
 /** 盤面の実マス幅（描画済み td を測る。CSS 変数だけだとゼリーがずれる） */
 export function cellSize() {
-  if (typeof document === "undefined") return CELL_SIZE;
+  const css = cssCellSize();
+  if (typeof document === "undefined") return css;
   const map = document.getElementById("map");
   if (map) {
     const td = map.querySelector("table td");
     if (td) {
       const { width, height } = td.getBoundingClientRect();
       const s = Math.max(width, height);
-      if (s > 0) return s;
+      // 縮小フィードバックで極端に小さい測定値は無視
+      if (s >= css * 0.75) return s;
     }
   }
-  const n = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--cell"));
-  return Number.isFinite(n) && n > 0 ? n : CELL_SIZE;
-}
-
-function syncCellCssVar() {
-  const s = cellSize();
-  document.documentElement.style.setProperty("--cell", `${s}px`);
+  return css;
 }
 
 export const COLORS = {
@@ -228,15 +235,19 @@ export class Stage {
   loadMap(rows) {
     const table = document.createElement("table");
     this.dom.innerHTML = "";
+    this.dom.style.width = "";
+    this.dom.style.height = "";
     this.dom.appendChild(table);
+    const cols = Math.max(...rows.map((r) => String(r).length), 1);
     const colors = {};
     this.cells = rows.map((row, y) => {
       const tr = document.createElement("tr");
       table.appendChild(tr);
-      return [...row].map((ch, x) => {
+      const line = String(row).padEnd(cols, " ").slice(0, cols);
+      return [...line].map((ch, x) => {
         const td = document.createElement("td");
         let cell = null;
-        if (ch === "x") {
+        if (ch === "x" || ch === "?") {
           td.className = "cell wall";
           cell = new Wall(td);
         } else {
@@ -267,29 +278,18 @@ export class Stage {
     });
     this.addBorders();
     void this.dom.offsetWidth;
-    syncCellCssVar();
     for (const jelly of this.jellies) this.refreshJellyBorders(jelly);
-    requestAnimationFrame(() => {
-      this.remountLayout();
-      requestAnimationFrame(() => this.remountLayout());
-    });
+    requestAnimationFrame(() => this.remountLayout());
   }
 
   /** 描画後のマス幅にゼリー位置・サイズを合わせる */
   remountLayout() {
     if (!this.cells?.[0]?.length) return;
-    syncCellCssVar();
     const s = cellSize();
     const cols = this.cells[0].length;
     const rows = this.cells.length;
-    const table = this.dom.querySelector("table");
-    const tableRect = table?.getBoundingClientRect();
-    const w =
-      tableRect && tableRect.width > 0 ? tableRect.width : Math.round(cols * s);
-    const h =
-      tableRect && tableRect.height > 0 ? tableRect.height : Math.round(rows * s);
-    this.dom.style.width = `${w}px`;
-    this.dom.style.height = `${h}px`;
+    this.dom.style.width = `${Math.round(cols * s)}px`;
+    this.dom.style.height = `${Math.round(rows * s)}px`;
     for (const jelly of this.jellies) {
       if (!jelly.cells?.length) continue;
       jelly.updatePosition(jelly.x, jelly.y);
