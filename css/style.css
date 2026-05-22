@@ -97,19 +97,34 @@ body {
   font-weight: 600;
 }
 
-#stage-wrap {
+#stage-shell {
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  padding: 8px;
-  position: relative;
   min-height: 0;
+  position: relative;
+}
+
+#stage-rotator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform-origin: center center;
+  flex-shrink: 0;
+}
+
+#stage-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  padding: 8px;
 }
 
 .game-mobile #stage-wrap {
-  padding: 4px;
+  padding: 0;
 }
 
 #stage-fit {
@@ -585,35 +600,31 @@ dialog.clear-dialog::backdrop {
   margin: 12px 0;
 }
 
-/* スマホ縦持ちのまま UI ごと 90° 回転（横長ゲームを大きく表示） */
+/* スマホ縦持ち：UIはそのまま、盤面だけ90°回転して大きく表示 */
 @media (max-width: 900px) {
   html.game-mobile,
   html.game-mobile body {
     overflow: hidden;
-    height: 100%;
-    width: 100%;
   }
 
   html.game-mobile #app {
-    position: fixed;
-    left: 50%;
-    top: 50%;
-    width: 100dvh;
-    height: 100vw;
-    max-width: 100dvh;
-    max-height: 100vw;
-    transform: translate(-50%, -50%) rotate(90deg);
-    transform-origin: center center;
+    height: 100dvh;
+    max-height: 100dvh;
   }
 
   :root {
-    --chrome-v: 48px;
-    --cell-boost: 1.12;
+    --chrome-v: 52px;
+    --cell-boost: 1.1;
+    /* 回転後 横=11マスが画面幅、縦=19マスが画面高さ に収まる */
     --cell: min(
       42px,
-      calc((100dvh - var(--chrome-v) - 12px) / var(--board-cols) * var(--cell-boost)),
-      calc((100vw - 12px) / var(--board-rows) * var(--cell-boost))
+      calc((100vw - 8px) / var(--board-rows) * var(--cell-boost)),
+      calc((100dvh - var(--chrome-v) - 8px) / var(--board-cols) * var(--cell-boost))
     );
+  }
+
+  html.game-mobile #stage-rotator {
+    transform: rotate(90deg);
   }
 
   #stage-fit,
@@ -679,15 +690,15 @@ dialog.clear-dialog::backdrop {
 @supports not (height: 100dvh) {
   @media (max-width: 900px) {
     html.game-mobile #app {
-      width: 100vh;
-      max-width: 100vh;
+      height: 100vh;
+      max-height: 100vh;
     }
 
     :root {
       --cell: min(
         42px,
-        calc((100vh - var(--chrome-v) - 12px) / var(--board-cols) * var(--cell-boost)),
-        calc((100vw - 12px) / var(--board-rows) * var(--cell-boost))
+        calc((100vw - 8px) / var(--board-rows) * var(--cell-boost)),
+        calc((100vh - var(--chrome-v) - 8px) / var(--board-cols) * var(--cell-boost))
       );
     }
   }
