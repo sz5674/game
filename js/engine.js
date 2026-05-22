@@ -187,6 +187,18 @@ function pointer(e) {
   return { x: e.clientX, y: e.clientY };
 }
 
+/** @param {unknown} rows */
+export function coerceBoardRows(rows) {
+  if (!Array.isArray(rows) || !rows.length) return null;
+  const lines = rows.map((row) => {
+    if (typeof row === "string") return row;
+    if (Array.isArray(row)) return row.join("");
+    return "";
+  });
+  if (lines.some((line) => line.includes(","))) return null;
+  return lines;
+}
+
 export class Stage {
   /**
    * @param {HTMLElement} dom
@@ -401,29 +413,31 @@ export class Stage {
   }
 
   saveForUndo() {
-    this.history.push(this.snapshot().map((r) => String(r)));
+    this.history.push(this.snapshot());
   }
 
   snapshot() {
-    const rows = this.cells.map((row) => row.map(() => " "));
+    const grid = this.cells.map((row) => row.map(() => " "));
     for (let y = 0; y < this.cells.length; y++) {
       for (let x = 0; x < this.cells[0].length; x++) {
         const cell = this.cells[y][x];
-        if (cell instanceof Wall) rows[y][x] = "x";
+        if (cell instanceof Wall) grid[y][x] = "x";
         else if (cell instanceof JellyCell) {
           const map = { red: "r", green: "g", blue: "b", yellow: "y", black: "k" };
-          rows[y][x] = map[cell.color] || "k";
+          grid[y][x] = map[cell.color] || "k";
         }
       }
     }
-    return rows;
+    return grid.map((row) => row.join(""));
   }
 
   restore(rows, { keepHistory = false } = {}) {
     if (this.busy) return;
+    const lines = coerceBoardRows(rows);
+    if (!lines?.length) return;
     this.busy = true;
     if (!keepHistory) this.history = [];
-    this.rebuildFromRows(rows);
+    this.rebuildFromRows(lines);
     this.busy = false;
   }
 
@@ -650,7 +664,7 @@ export class Stage {
 
   checkForMerges({ relayout = true } = {}) {
     let merged = false;
-    while (this.doOneMerge()) merged = true;
+    for (let i = 0; i < 500 && this.doOneMerge(); i++) merged = true;
     if (merged) this.checkForCompletion();
     if (relayout) this.applyLayoutSync();
   }

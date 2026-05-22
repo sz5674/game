@@ -1,9 +1,9 @@
-import { Stage } from "./engine.js?v=15";
+import { Stage, coerceBoardRows } from "./engine.js?v=16";
 
 const STORAGE_KEY = "yugopuzzle-web-progress";
 const SETTINGS_KEY = "yugopuzzle-web-settings";
 /** 盤面保存形式の版（上げると boards を一度クリアしてずれを防ぐ） */
-const PROGRESS_SCHEMA = 2;
+const PROGRESS_SCHEMA = 3;
 
 /** @type {{ id: number, name: string, grid: boolean, rows: string[] }[]} */
 let LEVELS = [];
@@ -94,8 +94,9 @@ function boardDimensions(rows) {
 
 /** 保存盤面をレベル定義の行数・列数に合わせる（行長ぶれは切り詰め／パディング） */
 function normalizeSavedBoard(rawRows, templateRows) {
+  const lines = coerceBoardRows(rawRows);
+  if (!lines?.length) return null;
   const expected = boardDimensions(templateRows);
-  const lines = rawRows.map((r) => String(r));
   if (lines.length !== expected.rows) return null;
   return lines.map((line) => line.padEnd(expected.cols, " ").slice(0, expected.cols));
 }
@@ -104,7 +105,7 @@ function loadBoardState(levelId) {
   const rows = loadProgress().boards[levelId];
   if (!rows?.length) return null;
   const lv = getLevel(levelId);
-  if (!lv?.rows?.length) return rows.map((r) => String(r));
+  if (!lv?.rows?.length) return coerceBoardRows(rows);
   return normalizeSavedBoard(rows, lv.rows);
 }
 
@@ -124,7 +125,7 @@ function persistCurrentBoard(levelId = currentLevel, { force = false } = {}) {
   if (!stage || !levelId) return;
   if (!force && stage.busy) return;
   const progress = loadProgress();
-  progress.boards[levelId] = stage.snapshot().map((r) => String(r));
+  progress.boards[levelId] = stage.snapshot();
   saveProgress(progress);
 }
 
