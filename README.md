@@ -8,7 +8,14 @@ Steam版 [Yugo Puzzle](https://store.steampowered.com/app/1693260/Yugo_Puzzle/) 
 
 iPhone / Android のブラウザで上記 URL を開き、ゼリーを **左右にスワイプ** して動かします（ホーム画面に追加しても遊べます）。
 
-初回デプロイ後、表示まで数分かかることがあります。リポジトリの **Settings → Pages → Build and deployment → Source: GitHub Actions** になっているか確認してください。
+初回は次の **Pages 設定（1回だけ）** が必要です。
+
+1. https://github.com/sz5674/game/settings/pages を開く  
+2. **Build and deployment → Source** で **Deploy from a branch** を選ぶ  
+3. **Branch: `gh-pages`**、フォルダ **`/ (root)`** → **Save**  
+4. **Actions** タブで「Deploy to GitHub Pages」が成功するまで待つ（1〜3分）
+
+まだ「There isn't a GitHub Pages site here」と出る場合は、上記 3 の Save 後に 5 分ほど待ってから URL を開き直してください。
 
 ## ローカルで遊ぶ
 
