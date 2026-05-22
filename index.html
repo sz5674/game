@@ -8,7 +8,7 @@
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="theme-color" content="#1a1a2e" />
   <title>Yugo Puzzle (Web)</title>
-  <link rel="stylesheet" href="css/style.css?v=8" />
+  <link rel="stylesheet" href="css/style.css?v=9" />
 </head>
 <body>
   <div id="app" class="game-app">
@@ -21,15 +21,13 @@
       </div>
     </header>
 
-    <main id="stage-shell">
-      <div id="stage-rotator">
-        <div id="stage-wrap">
-          <div id="stage-fit">
-            <div id="stage-scaler">
-              <div id="map" aria-label="パズル盤面"></div>
-              <p id="wip-overlay" class="wip-overlay" hidden>修正中</p>
-            </div>
-          </div>
+    <p id="rotate-hint" class="rotate-hint" hidden>スマホは横向きでお使いください</p>
+
+    <main id="stage-wrap">
+      <div id="stage-fit">
+        <div id="stage-scaler">
+          <div id="map" aria-label="パズル盤面"></div>
+          <p id="wip-overlay" class="wip-overlay" hidden>修正中</p>
         </div>
       </div>
     </main>
@@ -85,6 +83,6 @@
     </div>
   </dialog>
 
-  <script type="module" src="js/app.js?v=8"></script>
+  <script type="module" src="js/app.js?v=9"></script>
 </body>
 </html>

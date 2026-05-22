@@ -159,19 +159,20 @@ function isLevelWip(lv) {
   return !!lv.wip || lv.id >= 15;
 }
 
-/** スマホ: 横画面レイアウト / 縦持ち時は盤面90°回転 */
-function updateLayoutOrientation() {
+/** スマホ横持ち用レイアウト */
+function updateMobileLayout() {
   const mobile = window.matchMedia("(max-width: 900px)").matches;
-  const portrait = mobile && window.matchMedia("(orientation: portrait)").matches;
   document.documentElement.classList.toggle("game-mobile", mobile);
-  document.documentElement.classList.toggle("layout-portrait-rotate", portrait);
-  document.documentElement.classList.toggle("layout-landscape", mobile && !portrait);
-  if (stage) stage.setRotated(portrait);
+  const hint = $("#rotate-hint");
+  if (hint) {
+    const portrait = mobile && window.matchMedia("(orientation: portrait)").matches;
+    hint.hidden = !portrait;
+  }
 }
 
 /** ツールバー高さを CSS 変数に反映し、盤面レイアウトを再計算 */
 function fitStageToViewport() {
-  updateLayoutOrientation();
+  updateMobileLayout();
   const header = $("#app > header.toolbar");
   const footer = $("#app > footer.toolbar");
   const fit = $("#stage-fit");
@@ -190,6 +191,12 @@ function fitStageToViewport() {
     scaler.style.transform = "";
   }
   if (stage) stage.remountLayout();
+}
+
+/** 横持ち固定（対応ブラウザのみ・失敗しても問題なし） */
+function tryLockLandscape() {
+  if (!window.matchMedia("(max-width: 900px)").matches) return;
+  screen.orientation?.lock?.("landscape").catch(() => {});
 }
 
 function scheduleStageFit() {
@@ -224,7 +231,7 @@ function mountLevel(id) {
   const wipOverlay = $("#wip-overlay");
   if (wipOverlay) wipOverlay.hidden = !wip;
   applyGrid(settings);
-  fitStageToViewport();
+  updateMobileLayout();
 
   stage = new Stage(map, playRows, {
     showGrid: settings.grid,
@@ -232,8 +239,6 @@ function mountLevel(id) {
     onClear: () => onLevelClear(lv.id),
     onStateChange: () => persistCurrentBoard(lv.id),
   });
-  updateLayoutOrientation();
-
   const cleared = isLevelCleared(lv.id);
   let label = `Level ${lv.id}`;
   if (wip) label += "（修正中）";
@@ -321,13 +326,9 @@ function updateMenuHighlight() {
 function bindUI() {
   window.addEventListener("resize", scheduleStageFit);
   window.addEventListener("orientationchange", () => {
-    updateLayoutOrientation();
     setTimeout(scheduleStageFit, 100);
     setTimeout(scheduleStageFit, 500);
   });
-  if (window.matchMedia) {
-    window.matchMedia("(orientation: portrait)").addEventListener("change", scheduleStageFit);
-  }
   window.visualViewport?.addEventListener("resize", scheduleStageFit);
   window.addEventListener("pagehide", () => persistCurrentBoard());
 
@@ -390,8 +391,9 @@ async function main() {
   await loadLevels();
   const settings = loadSettings();
   applyTheme(settings);
-  updateLayoutOrientation();
+  updateMobileLayout();
   bindUI();
+  tryLockLandscape();
 
   const progress = loadProgress();
   const startLv = LEVELS.some((l) => l.id === progress.lastLevel)

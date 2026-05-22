@@ -97,27 +97,9 @@ body {
   font-weight: 600;
 }
 
-#stage-shell {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  min-height: 0;
-  position: relative;
-}
-
-#stage-rotator {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transform-origin: center center;
-}
-
 #stage-wrap {
   flex: 1;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
   overflow: hidden;
@@ -127,8 +109,7 @@ body {
 }
 
 .game-mobile #stage-wrap {
-  flex: none;
-  padding: 0;
+  padding: 4px;
 }
 
 #stage-fit {
@@ -604,15 +585,31 @@ dialog.clear-dialog::backdrop {
   margin: 12px 0;
 }
 
-/* スマホ：横画面ゲーム（UIは小さく・盤面を大きく） */
+.rotate-hint {
+  display: none;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 24px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+/* スマホ横持ち専用（UI小・盤面大） */
 @media (max-width: 900px) {
   :root {
     --chrome-v: 52px;
     --cell-boost: 1.15;
-  }
-
-  #stage-shell {
-    padding: 2px;
+    --cell: min(
+      42px,
+      calc((100vw - 16px) / var(--board-cols) * var(--cell-boost)),
+      calc(
+        (100dvh - var(--chrome-v) - env(safe-area-inset-top) - env(safe-area-inset-bottom)) /
+          var(--board-rows) * var(--cell-boost)
+      )
+    );
   }
 
   #stage-fit,
@@ -675,59 +672,25 @@ dialog.clear-dialog::backdrop {
   }
 }
 
-/* 横持ち：そのまま大きく表示 */
-@media (max-width: 900px) and (orientation: landscape) {
-  :root {
-    --cell: min(
-      42px,
-      calc((100vw - 12px) / var(--board-cols) * var(--cell-boost)),
-      calc(
-        (100dvh - var(--chrome-v) - env(safe-area-inset-top) - env(safe-area-inset-bottom)) /
-          var(--board-rows) * var(--cell-boost)
-      )
-    );
-  }
-
-  html.layout-landscape #stage-rotator {
-    transform: none;
-  }
-}
-
-/* 縦持ち：盤面を90°回転して長辺を盤面幅に使う */
+/* 縦持ちのときだけ案内（ゲームは横持ち前提） */
 @media (max-width: 900px) and (orientation: portrait) {
-  :root {
-    --cell: min(
-      42px,
-      calc(
-        (100dvh - var(--chrome-v) - env(safe-area-inset-top) - env(safe-area-inset-bottom)) /
-          var(--board-cols) * var(--cell-boost)
-      ),
-      calc((100vw - 12px) / var(--board-rows) * var(--cell-boost))
-    );
+  .rotate-hint {
+    display: flex;
   }
 
-  html.layout-portrait-rotate #stage-rotator {
-    transform: rotate(90deg);
+  #stage-wrap,
+  .game-chrome {
+    display: none !important;
   }
 }
 
 @supports not (height: 100dvh) {
-  @media (max-width: 900px) and (orientation: landscape) {
+  @media (max-width: 900px) {
     :root {
       --cell: min(
         42px,
-        calc((100vw - 12px) / var(--board-cols) * var(--cell-boost)),
+        calc((100vw - 16px) / var(--board-cols) * var(--cell-boost)),
         calc((100vh - var(--chrome-v)) / var(--board-rows) * var(--cell-boost))
-      );
-    }
-  }
-
-  @media (max-width: 900px) and (orientation: portrait) {
-    :root {
-      --cell: min(
-        42px,
-        calc((100vh - var(--chrome-v)) / var(--board-cols) * var(--cell-boost)),
-        calc((100vw - 12px) / var(--board-rows) * var(--cell-boost))
       );
     }
   }
