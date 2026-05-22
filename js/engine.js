@@ -274,6 +274,10 @@ export class Stage {
     });
     this.addBorders();
     void this.dom.offsetWidth;
+    const instant = this.dom.classList.contains("instant-layout");
+    if (instant) {
+      return;
+    }
     syncCellCssVar();
     for (const jelly of this.jellies) this.refreshJellyBorders(jelly);
     requestAnimationFrame(() => {
@@ -384,14 +388,35 @@ export class Stage {
   }
 
   restore(rows, { keepHistory = false } = {}) {
+    this.dom.classList.add("instant-layout");
+    this.busy = true;
     this.dom.innerHTML = "";
     this.jellies = [];
     if (!keepHistory) this.history = [];
-    this.busy = false;
     this.num_monochromatic_blocks = 0;
     this.num_colors = 0;
+    this.dom.style.width = "";
+    this.dom.style.height = "";
+    document.documentElement.style.removeProperty("--cell");
     this.loadMap(rows);
     this.checkForMerges();
+    void this.dom.offsetWidth;
+    this.remountLayout();
+    this.dom.querySelectorAll(".jellybox").forEach((el) => {
+      el.classList.remove(
+        "sliding",
+        "falling",
+        "airborne",
+        "dragging",
+        "hop-fail",
+        "hop-move",
+        "drop-impact",
+        "clear-party"
+      );
+      el.style.removeProperty("transition");
+    });
+    this.dom.classList.remove("instant-layout");
+    this.busy = false;
   }
 
   waitForAnimation(cb, ms = 125) {
