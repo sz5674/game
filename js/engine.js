@@ -3,11 +3,24 @@
 /** @deprecated 互換用。実サイズは CSS の --cell を参照 */
 export const CELL_SIZE = 42;
 
-/** 盤面・ゼリーのピクセルサイズ（スマホでは CSS で縮小） */
+/** 盤面の実マス幅（描画済み td を測る。CSS 変数だけだとゼリーがずれる） */
 export function cellSize() {
   if (typeof document === "undefined") return CELL_SIZE;
+  const map = document.getElementById("map");
+  if (map) {
+    const td = map.querySelector("table td");
+    if (td) {
+      const w = td.getBoundingClientRect().width;
+      if (w > 0) return w;
+    }
+  }
   const n = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--cell"));
   return Number.isFinite(n) && n > 0 ? n : CELL_SIZE;
+}
+
+function syncCellCssVar() {
+  const s = cellSize();
+  document.documentElement.style.setProperty("--cell", `${s}px`);
 }
 
 export const COLORS = {
@@ -27,8 +40,9 @@ const DIRS = {
 };
 
 function moveToCell(dom, x, y) {
-  dom.style.left = `calc(var(--cell) * ${x})`;
-  dom.style.top = `calc(var(--cell) * ${y})`;
+  const s = cellSize();
+  dom.style.left = `${x * s}px`;
+  dom.style.top = `${y * s}px`;
 }
 
 export class Wall {
@@ -247,14 +261,24 @@ export class Stage {
       });
     });
     this.addBorders();
+    void this.dom.offsetWidth;
+    syncCellCssVar();
     for (const jelly of this.jellies) this.refreshJellyBorders(jelly);
+    requestAnimationFrame(() => {
+      this.remountLayout();
+      requestAnimationFrame(() => this.remountLayout());
+    });
   }
 
-  /** --cell 変更後にゼリー位置・見た目を盤面に同期 */
+  /** 描画後のマス幅にゼリー位置・サイズを合わせる */
   remountLayout() {
     if (!this.cells?.[0]?.length) return;
-    this.dom.style.width = "";
-    this.dom.style.height = "";
+    syncCellCssVar();
+    const s = cellSize();
+    const cols = this.cells[0].length;
+    const rows = this.cells.length;
+    this.dom.style.width = `${cols * s}px`;
+    this.dom.style.height = `${rows * s}px`;
     for (const jelly of this.jellies) {
       if (!jelly.cells?.length) continue;
       jelly.updatePosition(jelly.x, jelly.y);
@@ -267,8 +291,10 @@ export class Stage {
   refreshJellyBorders(jelly) {
     const set = new Set(jelly.cells.map((c) => `${c.x},${c.y}`));
     const has = (x, y) => set.has(`${x},${y}`);
-    const R = "calc(var(--cell) * 0.26)";
+    const cs = cellSize();
+    const R = `${Math.max(4, Math.round(cs * 0.26))}px`;
     const line = "rgba(0, 0, 0, 0.12)";
+    const seam = Math.max(1, Math.round(cs * 0.05));
     const merged = jelly.cells.length > 1;
 
     jelly.dom.classList.toggle("is-merged", merged);
@@ -285,8 +311,12 @@ export class Stage {
       s.marginLeft = "0";
       s.marginTop = "0";
       s.borderRadius = `${top && left ? R : "0"} ${top && right ? R : "0"} ${bottom && right ? R : "0"} ${bottom && left ? R : "0"}`;
-      s.width = merged && has(x + 1, y) ? "calc(var(--cell) + 2px)" : "";
-      s.height = merged && has(x, y + 1) ? "calc(var(--cell) + 2px)" : "";
+      let w = cs;
+      let h = cs;
+      if (merged && has(x + 1, y)) w += seam;
+      if (merged && has(x, y + 1)) h += seam;
+      s.width = `${w}px`;
+      s.height = `${h}px`;
       s.zIndex = "1";
       const edge = [];
       if (top) edge.push(`inset 0 2px 0 0 ${line}`);
@@ -561,7 +591,7 @@ export class Stage {
     let merged = false;
     while (this.doOneMerge()) merged = true;
     if (merged) this.checkForCompletion();
-    for (const j of this.jellies) this.refreshJellyBorders(j);
+    this.remountLayout();
   }
 
   doOneMerge() {
