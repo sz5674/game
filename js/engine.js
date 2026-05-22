@@ -453,9 +453,18 @@ export class Stage {
     }, anyAirborne ? 65 : 125);
   }
 
+  /** スライド方向の先端マスか（横並びゼリーで内側マスの対角壁を誤判定しない） */
+  isLeadingCell(jelly, x, y, dir) {
+    const row = jelly.cellCoords().filter(([, cy]) => cy === y);
+    if (!row.length) return true;
+    if (dir > 0) return x === Math.max(...row.map(([cx]) => cx));
+    if (dir < 0) return x === Math.min(...row.map(([cx]) => cx));
+    return true;
+  }
+
   /**
    * 移動するゼリー一式（押し出し連鎖を含む）。不可なら null
-   * @param {Jelly} actor スワイプしたブロック（右上壁判定は actor のみ）
+   * @param {Jelly} actor スワイプしたブロック
    */
   collectSlideGroup(actor, dir) {
     const stack = [actor];
@@ -469,12 +478,18 @@ export class Stage {
           const tx = x + dir;
           if (tx < 0 || tx >= this.cells[0].length) return null;
 
-          // 真上が空き＝ジャンプ移動。右上/左上が壁なら(actorのみ)不可、色ブロックなら押し込む
+          // 真上が空き＝ジャンプ移動。先端マスのみ右上/左上の壁で不可
           if (y > 0) {
             const headroom = !this.cells[y - 1]?.[x];
             if (headroom) {
               const corner = this.cells[y - 1]?.[tx];
-              if (j === actor && corner instanceof Wall) return null;
+              if (
+                j === actor &&
+                this.isLeadingCell(j, x, y, dir) &&
+                corner instanceof Wall
+              ) {
+                return null;
+              }
               if (corner instanceof JellyCell && corner.jelly && !stack.includes(corner.jelly)) {
                 // 移動グループの上に乗っているブロックは押さない（横並びの上に載った別色など）
                 const ridesOnStack = stack.some((sj) =>
