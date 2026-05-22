@@ -11,7 +11,7 @@
       "xx           b   xx",
       "xx           xx  xx",
       "xx               xx",
-      "xx  r          r xx",
+      "xx  ry   y     r xx",
       "xxxxxxxb xx xxxxxxx",
       "xxxxxxxxxxxxxxxxxxx",
       "xxxxxxxxxxxxxxxxxxx"
@@ -120,7 +120,7 @@
       "xxx     xxxb    xxx",
       "xxx     xxxx    xxx",
       "xxx r   xxxx    xxx",
-      "xxxx           rxxx",
+      "xxxxy         yrxxx",
       "xxxxbxxxxxxxxxxxxxx",
       "xxxxxxxxxxxxxxxxxxx",
       "xxxxxxxxxxxxxxxxxxx"
@@ -188,13 +188,13 @@
       "xxxxxxxxxxxxxxxxxxx",
       "xxxxxxxxxxxxxxxxxxx",
       "xxxx            xxx",
-      "xxxx            xxx",
+      "xxxx          r xxx",
       "xxxxb bb     bbbxxx",
       "xxxxxxxx     xxxxxx",
       "xxxxxxxx     xxxxxx",
       "xxxxxxxx        xxx",
-      "xxxxx      xxxxbxxx",
-      "xxxxx xxxxxxxxxxxxx",
+      "xxxxxr     xxxxbxxx",
+      "xxxxxrxxxxxxxxxxxxx",
       "xxxxxxxxxxxxxxxxxxx"
     ]
   },
@@ -205,14 +205,14 @@
     "rows": [
       "xxxxxxxxxxxxxxxxxxx",
       "xxx          xxxxxx",
-      "xxx      r  rxxxxxx",
-      "xxxr    xx  xxxxxxx",
+      "xxx     yr  rxxxxxx",
+      "xxxry   xx  xxxxxxx",
       "xxxxx   xx  xxxxxxx",
       "xxxxx         xxxxx",
       "xxxxx         xxxxx",
       "xxxxxxxx        xxx",
       "xxxxxxxx     xx xxx",
-      "xxxxxxxxxxxx xx xxx",
+      "xxxxxxxxxxxx xxyxxx",
       "xxxxxxxxxxxxxxxxxxx"
     ]
   },
@@ -240,7 +240,7 @@
     "grid": false,
     "rows": [
       "xxxxxxxxxxxxxxxxxxx",
-      "xxxxxx y  b b b bxxx",
+      "xxxxxxy  b b b bxxx",
       "xxxxxxxx x x x xxxx",
       "xxxxxrrr       xxxx",
       "xxxxxr         xxxx",
