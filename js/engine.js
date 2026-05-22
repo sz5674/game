@@ -3,28 +3,28 @@
 /** @deprecated 互換用。実サイズは CSS の --cell を参照 */
 export const CELL_SIZE = 42;
 
-/** 描画済み td の実寸を --cell に反映（ゼリーとマス目のサイズを一致させる） */
-function syncCellCssVar() {
-  const map = document.getElementById("map");
-  const td = map?.querySelector("table td");
-  if (td) {
-    const { width, height } = td.getBoundingClientRect();
-    const s = Math.max(width, height);
-    if (s > 0) {
-      document.documentElement.style.setProperty("--cell", `${s}px`);
-      return s;
-    }
-  }
+/** CSS の min() で決まったマス幅（インライン --cell は使わない） */
+function readCssCellSize() {
+  if (typeof document === "undefined") return CELL_SIZE;
   const n = parseFloat(
     getComputedStyle(document.documentElement).getPropertyValue("--cell")
   );
   return Number.isFinite(n) && n > 0 ? n : CELL_SIZE;
 }
 
-/** 盤面の実マス幅（描画済み td を測る。CSS 変数だけだとゼリーがずれる） */
+/** 描画済み td を測る（--cell を書き換えない＝再読み込み・戻すでの累積ずれを防ぐ） */
+function measureCellFromDom(mapEl) {
+  const td = mapEl?.querySelector("table td");
+  if (!td) return readCssCellSize();
+  const { width, height } = td.getBoundingClientRect();
+  const s = Math.max(width, height);
+  return s > 0 ? s : readCssCellSize();
+}
+
+/** @deprecated 互換用 */
 export function cellSize() {
-  if (typeof document === "undefined") return CELL_SIZE;
-  return syncCellCssVar();
+  const map = document.getElementById("map");
+  return measureCellFromDom(map);
 }
 
 export const COLORS = {
@@ -43,8 +43,7 @@ const DIRS = {
   down: { x: 0, y: 1 },
 };
 
-function moveToCell(dom, x, y) {
-  const s = cellSize();
+function moveToCell(dom, x, y, s) {
   dom.style.left = `${x * s}px`;
   dom.style.top = `${y * s}px`;
 }
@@ -118,7 +117,7 @@ export class Jelly {
   updatePosition(x, y) {
     this.x = x;
     this.y = y;
-    moveToCell(this.dom, x, y);
+    moveToCell(this.dom, x, y, this.stage._cellPx);
   }
 
   merge(other) {
@@ -129,7 +128,7 @@ export class Jelly {
       cell.x += dx;
       cell.y += dy;
       cell.jelly = this;
-      moveToCell(cell.dom, cell.x, cell.y);
+      moveToCell(cell.dom, cell.x, cell.y, this.stage._cellPx);
       this.dom.appendChild(cell.dom);
     }
     if (other.immovable) this.immovable = true;
@@ -200,12 +199,40 @@ export class Stage {
     this.jellies = [];
     this.history = [];
     this.busy = false;
+    this._cellPx = CELL_SIZE;
+    this.num_monochromatic_blocks = 0;
+    this.num_colors = 0;
+    if (opts.showGrid) this.dom.classList.add("show-grid");
+    this.dom.addEventListener("contextmenu", (e) => e.preventDefault());
+    this.rebuildFromRows(rows);
+  }
+
+  /** 盤面を一括再構築（戻す・リセット・初回読み込みで同じ経路） */
+  rebuildFromRows(rows) {
+    this.dom.classList.add("instant-layout");
+    this.dom.style.width = "";
+    this.dom.style.height = "";
+    document.documentElement.style.removeProperty("--cell");
+    this.jellies = [];
     this.num_monochromatic_blocks = 0;
     this.num_colors = 0;
     this.loadMap(rows);
-    this.checkForMerges();
-    if (opts.showGrid) this.dom.classList.add("show-grid");
-    this.dom.addEventListener("contextmenu", (e) => e.preventDefault());
+    this.checkForMerges({ relayout: false });
+    this.applyLayoutSync();
+    this.dom.querySelectorAll(".jellybox").forEach((el) => {
+      el.classList.remove(
+        "sliding",
+        "falling",
+        "airborne",
+        "dragging",
+        "hop-fail",
+        "hop-move",
+        "drop-impact",
+        "clear-party"
+      );
+      el.style.removeProperty("transition");
+    });
+    this.dom.classList.remove("instant-layout");
   }
 
   _notifyStateChange() {
@@ -273,41 +300,46 @@ export class Stage {
       });
     });
     this.addBorders();
-    void this.dom.offsetWidth;
-    const instant = this.dom.classList.contains("instant-layout");
-    if (instant) {
-      return;
-    }
-    syncCellCssVar();
-    for (const jelly of this.jellies) this.refreshJellyBorders(jelly);
-    requestAnimationFrame(() => {
-      this.remountLayout();
-      requestAnimationFrame(() => this.remountLayout());
-    });
   }
 
-  /** 描画後のマス幅にゼリー位置・サイズを合わせる */
-  remountLayout() {
+  /** マス1回測定でゼリー位置・サイズを確定（--cell を上書きしない） */
+  applyLayoutSync() {
     if (!this.cells?.[0]?.length) return;
     void this.dom.offsetWidth;
-    const s = cellSize();
+    const table = this.dom.querySelector("table");
     const cols = this.cells[0].length;
-    const rows = this.cells.length;
-    this.dom.style.width = `${Math.round(cols * s)}px`;
-    this.dom.style.height = `${Math.round(rows * s)}px`;
+    const rowCount = this.cells.length;
+    let s = measureCellFromDom(this.dom);
+    if (table && cols > 0 && rowCount > 0) {
+      const tw = table.offsetWidth / cols;
+      const th = table.offsetHeight / rowCount;
+      const measured = Math.max(tw, th);
+      if (measured > 0) s = measured;
+    }
+    this._cellPx = s;
+    if (table) {
+      this.dom.style.width = `${table.offsetWidth}px`;
+      this.dom.style.height = `${table.offsetHeight}px`;
+    } else {
+      this.dom.style.width = `${Math.round(cols * s)}px`;
+      this.dom.style.height = `${Math.round(rowCount * s)}px`;
+    }
     for (const jelly of this.jellies) {
       if (!jelly.cells?.length) continue;
       jelly.updatePosition(jelly.x, jelly.y);
-      for (const cell of jelly.cells) moveToCell(cell.dom, cell.x, cell.y);
-      this.refreshJellyBorders(jelly);
+      for (const cell of jelly.cells) moveToCell(cell.dom, cell.x, cell.y, s);
+      this.refreshJellyBorders(jelly, s);
     }
   }
 
+  remountLayout() {
+    this.applyLayoutSync();
+  }
+
   /** 合体後は内側の境目を消し、外周だけ丸めて一体の形にする */
-  refreshJellyBorders(jelly) {
+  refreshJellyBorders(jelly, cs = this._cellPx) {
     const set = new Set(jelly.cells.map((c) => `${c.x},${c.y}`));
     const has = (x, y) => set.has(`${x},${y}`);
-    const cs = cellSize();
     const R = `${Math.max(4, Math.round(cs * 0.26))}px`;
     const line = "rgba(0, 0, 0, 0.12)";
     const seam = Math.max(1, Math.round(cs * 0.05));
@@ -369,7 +401,7 @@ export class Stage {
   }
 
   saveForUndo() {
-    this.history.push(this.snapshot());
+    this.history.push(this.snapshot().map((r) => String(r)));
   }
 
   snapshot() {
@@ -388,34 +420,10 @@ export class Stage {
   }
 
   restore(rows, { keepHistory = false } = {}) {
-    this.dom.classList.add("instant-layout");
+    if (this.busy) return;
     this.busy = true;
-    this.dom.innerHTML = "";
-    this.jellies = [];
     if (!keepHistory) this.history = [];
-    this.num_monochromatic_blocks = 0;
-    this.num_colors = 0;
-    this.dom.style.width = "";
-    this.dom.style.height = "";
-    document.documentElement.style.removeProperty("--cell");
-    this.loadMap(rows);
-    this.checkForMerges();
-    void this.dom.offsetWidth;
-    this.remountLayout();
-    this.dom.querySelectorAll(".jellybox").forEach((el) => {
-      el.classList.remove(
-        "sliding",
-        "falling",
-        "airborne",
-        "dragging",
-        "hop-fail",
-        "hop-move",
-        "drop-impact",
-        "clear-party"
-      );
-      el.style.removeProperty("transition");
-    });
-    this.dom.classList.remove("instant-layout");
+    this.rebuildFromRows(rows);
     this.busy = false;
   }
 
@@ -640,11 +648,11 @@ export class Stage {
     }, 70);
   }
 
-  checkForMerges() {
+  checkForMerges({ relayout = true } = {}) {
     let merged = false;
     while (this.doOneMerge()) merged = true;
     if (merged) this.checkForCompletion();
-    this.remountLayout();
+    if (relayout) this.applyLayoutSync();
   }
 
   doOneMerge() {

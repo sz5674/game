@@ -1,7 +1,9 @@
-import { Stage } from "./engine.js?v=14";
+import { Stage } from "./engine.js?v=15";
 
 const STORAGE_KEY = "yugopuzzle-web-progress";
 const SETTINGS_KEY = "yugopuzzle-web-settings";
+/** 盤面保存形式の版（上げると boards を一度クリアしてずれを防ぐ） */
+const PROGRESS_SCHEMA = 2;
 
 /** @type {{ id: number, name: string, grid: boolean, rows: string[] }[]} */
 let LEVELS = [];
@@ -52,14 +54,19 @@ function normalizeProgress(raw) {
       }
     }
   }
-  return { lastLevel, cleared, boards };
+  const schemaVersion = Number(raw?.schemaVersion) || 1;
+  return { lastLevel, cleared, boards, schemaVersion };
 }
 
 function loadProgress() {
   try {
-    return normalizeProgress(JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"));
+    const p = normalizeProgress(JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"));
+    if ((p.schemaVersion ?? 1) < PROGRESS_SCHEMA) {
+      return { lastLevel: p.lastLevel || 1, cleared: p.cleared, boards: {}, schemaVersion: PROGRESS_SCHEMA };
+    }
+    return p;
   } catch {
-    return { lastLevel: 1, cleared: {}, boards: {} };
+    return { lastLevel: 1, cleared: {}, boards: {}, schemaVersion: PROGRESS_SCHEMA };
   }
 }
 
@@ -71,6 +78,7 @@ function saveProgress(progress) {
         lastLevel: progress.lastLevel,
         cleared: progress.cleared,
         boards: progress.boards ?? {},
+        schemaVersion: PROGRESS_SCHEMA,
         updatedAt: new Date().toISOString(),
       })
     );
@@ -222,7 +230,7 @@ function fitStageToViewport() {
     scaler.style.height = "";
     scaler.style.transform = "";
   }
-  if (stage) stage.remountLayout();
+  if (stage) stage.applyLayoutSync();
 }
 
 let stageFitToken = 0;
@@ -274,7 +282,10 @@ function mountLevel(id) {
   $("#level-label").textContent = label;
   setLastPlayedLevel(lv.id);
   updateMenuHighlight();
-  scheduleStageFit();
+  requestAnimationFrame(() => {
+    updateChromeVar();
+    stage?.applyLayoutSync();
+  });
 }
 
 function stopClearCelebration() {
