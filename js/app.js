@@ -83,37 +83,36 @@ function isLevelWip(lv) {
   return !!lv.wip || lv.id >= 15;
 }
 
-/** 横長盤面を stage-wrap 内に収める（スマホで横スクロール不要） */
+/** ツールバー高さを CSS 変数に反映し、スマホ用 --cell を再計算 */
 function fitStageToViewport() {
-  const wrap = $("#stage-wrap");
+  const header = $("#app > header.toolbar");
+  const footer = $("#app > footer.toolbar");
   const fit = $("#stage-fit");
   const scaler = $("#stage-scaler");
-  const map = $("#map");
-  if (!wrap || !fit || !scaler || !map) return;
-
-  const mapW = map.offsetWidth;
-  const mapH = map.offsetHeight;
-  if (!mapW || !mapH) return;
-
-  const cs = getComputedStyle(wrap);
-  const padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
-  const padY = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
-  const availW = Math.max(0, wrap.clientWidth - padX);
-  const availH = Math.max(0, wrap.clientHeight - padY);
-  const scale = Math.min(1, availW / mapW, availH / mapH);
-
-  scaler.style.width = `${mapW}px`;
-  scaler.style.height = `${mapH}px`;
-  scaler.style.transform = `scale(${scale})`;
-  fit.style.width = `${Math.floor(mapW * scale)}px`;
-  fit.style.height = `${Math.floor(mapH * scale)}px`;
+  if (header && footer) {
+    const chrome = header.offsetHeight + footer.offsetHeight + 16;
+    document.documentElement.style.setProperty("--chrome-v", `${chrome}px`);
+  }
+  if (fit) {
+    fit.style.width = "";
+    fit.style.height = "";
+  }
+  if (scaler) {
+    scaler.style.width = "";
+    scaler.style.height = "";
+    scaler.style.transform = "";
+  }
+  if (stage) stage.remountLayout();
 }
 
 function scheduleStageFit() {
+  const run = () => fitStageToViewport();
   requestAnimationFrame(() => {
-    fitStageToViewport();
-    requestAnimationFrame(fitStageToViewport);
+    run();
+    requestAnimationFrame(run);
   });
+  setTimeout(run, 120);
+  setTimeout(run, 400);
 }
 
 function mountLevel(id) {
@@ -217,7 +216,9 @@ function bindUI() {
   window.addEventListener("resize", scheduleStageFit);
   window.addEventListener("orientationchange", () => {
     setTimeout(scheduleStageFit, 100);
+    setTimeout(scheduleStageFit, 500);
   });
+  window.visualViewport?.addEventListener("resize", scheduleStageFit);
 
   $("#btn-undo").addEventListener("click", () => {
     stage?.undo();
