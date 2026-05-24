@@ -1,9 +1,11 @@
-import { Stage, coerceBoardRows } from "./engine.js?v=16";
+import { Stage, coerceBoardRows } from "./engine.js?v=18";
 
 const STORAGE_KEY = "yugopuzzle-web-progress";
 const SETTINGS_KEY = "yugopuzzle-web-settings";
 /** 盤面保存形式の版（上げると boards を一度クリアしてずれを防ぐ） */
 const PROGRESS_SCHEMA = 3;
+/** レベルごとの「戻す」履歴の最大手数（localStorage 容量対策） */
+const MAX_UNDO_HISTORY = 80;
 
 /** @type {{ id: number, name: string, grid: boolean, rows: string[] }[]} */
 let LEVELS = [];
@@ -29,10 +31,11 @@ async function loadLevels() {
   }
 }
 
-/** @returns {{ lastLevel: number, cleared: Record<number, boolean>, boards: Record<number, string[]> }} */
+/** @returns {{ lastLevel: number, cleared: Record<number, boolean>, boards: Record<number, string[]>, histories: Record<number, string[][][]> }} */
 function normalizeProgress(raw) {
   const cleared = {};
   const boards = {};
+  const histories = {};
   let lastLevel = 1;
   if (raw && typeof raw === "object") {
     if (raw.cleared && typeof raw.cleared === "object") {
@@ -53,20 +56,35 @@ function normalizeProgress(raw) {
         if (Array.isArray(rows)) boards[Number(k)] = rows.map((r) => String(r));
       }
     }
+    if (raw.histories && typeof raw.histories === "object") {
+      for (const [k, stack] of Object.entries(raw.histories)) {
+        if (!Array.isArray(stack)) continue;
+        const snaps = stack
+          .filter((snap) => Array.isArray(snap))
+          .map((snap) => snap.map((r) => String(r)));
+        if (snaps.length) histories[Number(k)] = snaps;
+      }
+    }
   }
   const schemaVersion = Number(raw?.schemaVersion) || 1;
-  return { lastLevel, cleared, boards, schemaVersion };
+  return { lastLevel, cleared, boards, histories, schemaVersion };
 }
 
 function loadProgress() {
   try {
     const p = normalizeProgress(JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"));
     if ((p.schemaVersion ?? 1) < PROGRESS_SCHEMA) {
-      return { lastLevel: p.lastLevel || 1, cleared: p.cleared, boards: {}, schemaVersion: PROGRESS_SCHEMA };
+      return {
+        lastLevel: p.lastLevel || 1,
+        cleared: p.cleared,
+        boards: {},
+        histories: {},
+        schemaVersion: PROGRESS_SCHEMA,
+      };
     }
     return p;
   } catch {
-    return { lastLevel: 1, cleared: {}, boards: {}, schemaVersion: PROGRESS_SCHEMA };
+    return { lastLevel: 1, cleared: {}, boards: {}, histories: {}, schemaVersion: PROGRESS_SCHEMA };
   }
 }
 
@@ -78,6 +96,7 @@ function saveProgress(progress) {
         lastLevel: progress.lastLevel,
         cleared: progress.cleared,
         boards: progress.boards ?? {},
+        histories: progress.histories ?? {},
         schemaVersion: PROGRESS_SCHEMA,
         updatedAt: new Date().toISOString(),
       })
@@ -111,10 +130,46 @@ function loadBoardState(levelId) {
 
 function clearBoardState(levelId) {
   const progress = loadProgress();
+  let changed = false;
   if (progress.boards[levelId]) {
     delete progress.boards[levelId];
-    saveProgress(progress);
+    changed = true;
   }
+  if (progress.histories?.[levelId]) {
+    delete progress.histories[levelId];
+    changed = true;
+  }
+  if (changed) saveProgress(progress);
+}
+
+function loadUndoHistory(levelId, templateRows) {
+  const stacks = loadProgress().histories?.[levelId];
+  if (!stacks?.length || !templateRows?.length) return [];
+  const expected = boardDimensions(templateRows);
+  const out = [];
+  for (const snap of stacks) {
+    const rows = coerceBoardRows(snap);
+    if (!rows?.length) continue;
+    const dims = boardDimensions(rows);
+    if (dims.cols !== expected.cols || dims.rows !== expected.rows) continue;
+    out.push(rows.map((r) => String(r)));
+  }
+  return out.length > MAX_UNDO_HISTORY ? out.slice(-MAX_UNDO_HISTORY) : out;
+}
+
+function persistUndoHistory(levelId = currentLevel) {
+  if (!stage || !levelId) return;
+  const progress = loadProgress();
+  if (!progress.histories) progress.histories = {};
+  const stack = stage.history.map((rows) => rows.map((r) => String(r)));
+  progress.histories[levelId] =
+    stack.length > MAX_UNDO_HISTORY ? stack.slice(-MAX_UNDO_HISTORY) : stack;
+  saveProgress(progress);
+}
+
+function persistLevelSession(levelId = currentLevel, { force = false } = {}) {
+  persistCurrentBoard(levelId, { force });
+  persistUndoHistory(levelId);
 }
 
 /**
@@ -138,6 +193,7 @@ function markLevelCleared(id) {
   progress.cleared[id] = true;
   progress.lastLevel = id;
   delete progress.boards[id];
+  if (progress.histories?.[id]) delete progress.histories[id];
   saveProgress(progress);
 }
 
@@ -250,7 +306,7 @@ function mountLevel(id) {
   if (!lv) return;
 
   if (stage && currentLevel !== lv.id) {
-    persistCurrentBoard(currentLevel, { force: true });
+    persistLevelSession(currentLevel, { force: true });
   }
 
   currentLevel = lv.id;
@@ -275,6 +331,8 @@ function mountLevel(id) {
     onClear: () => onLevelClear(lv.id),
     onStateChange: () => persistCurrentBoard(lv.id),
   });
+  const undoStack = loadUndoHistory(lv.id, initialRows);
+  if (undoStack.length) stage.history = undoStack;
 
   const cleared = isLevelCleared(lv.id);
   let label = `Level ${lv.id}`;
@@ -370,15 +428,17 @@ function bindUI() {
     setTimeout(scheduleStageFit, 500);
   });
   window.visualViewport?.addEventListener("resize", scheduleStageFit);
-  window.addEventListener("pagehide", () => persistCurrentBoard(currentLevel, { force: true }));
+  window.addEventListener("pagehide", () => persistLevelSession(currentLevel, { force: true }));
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") {
-      persistCurrentBoard(currentLevel, { force: true });
+      persistLevelSession(currentLevel, { force: true });
     }
   });
 
   $("#btn-undo").addEventListener("click", () => {
     stage?.undo();
+    persistUndoHistory(currentLevel);
+    scheduleStageFit();
   });
   $("#btn-reset").addEventListener("click", () => {
     clearBoardState(currentLevel);
@@ -395,7 +455,7 @@ function bindUI() {
     if (i >= 0 && i < LEVELS.length - 1) mountLevel(LEVELS[i + 1].id);
   });
   $("#btn-menu").addEventListener("click", () => {
-    persistCurrentBoard(currentLevel, { force: true });
+    persistLevelSession(currentLevel, { force: true });
     renderLevelGrid();
     $("#menu-dialog").showModal();
   });
