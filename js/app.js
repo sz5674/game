@@ -1,9 +1,11 @@
-import { Stage, coerceBoardRows } from "./engine.js?v=18";
+import { Stage, coerceBoardRows } from "./engine.js?v=20";
 
 const STORAGE_KEY = "yugopuzzle-web-progress";
 const SETTINGS_KEY = "yugopuzzle-web-settings";
-/** 盤面保存形式の版（上げると boards を一度クリアしてずれを防ぐ） */
-const PROGRESS_SCHEMA = 3;
+/** 静的アセットの版（CSS/JS/levels.json のキャッシュ更新用） */
+const ASSET_VERSION = "20";
+/** 盤面保存形式の版（上げると boards / histories を一度クリアしてずれを防ぐ） */
+const PROGRESS_SCHEMA = 4;
 /** レベルごとの「戻す」履歴の最大手数（localStorage 容量対策） */
 const MAX_UNDO_HISTORY = 80;
 
@@ -19,7 +21,7 @@ let stage = null;
 let initialRows = [];
 
 async function loadLevels() {
-  const res = await fetch("./js/levels.json");
+  const res = await fetch(`./js/levels.json?v=${ASSET_VERSION}`);
   LEVELS = await res.json();
   const has38 = LEVELS.some((l) => l.id === 38);
   if (!has38) {
